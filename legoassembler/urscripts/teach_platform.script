@@ -17,30 +17,23 @@ end
 popup("Hit continue to start guided calibration procedure.", blocking=True)
 popup("Continue to initialize gripper.", blocking=True)
 
-$$GRIP(closed=50, speed=20, force=50)$$
+$$GRIP(closed=76, speed=1, force=1)$$
 
 teach_mode()
 
-popup("Move the gripper to left bottom corner of the build platform.", blocking=True)
+popup("Place 2x2 block on one corner of the build platform. Guide the arm to grab the block.", blocking=True)
 pos = get_actual_tcp_pose()
 socket_send_line(pos)
 
-popup("Move the gripper to right top corner of the build platform.", blocking=True)
+popup("Place 2x2 block on the diagonal opposite corner of the build platform. Guide the arm to grab the block.", blocking=True)
 pos = get_actual_tcp_pose()
 socket_send_line(pos)
 
-popup("Move the gripper to middle of the pickup platform.", blocking=True)
+popup("Move the gripper to middle (ground level) of the pickup platform.", blocking=True)
 pos = get_actual_tcp_pose()
 socket_send_line(pos)
 
 end_teach_mode()
-
-popup("Next the arm will move to imaging pose.", blocking=True)
-pos = recv_pose("pose")
-movej(pos, v=0.2)
-
-popup("Place calibration brick directly under the camera.", blocking=True)
-socket_send_line("capture")
 
 popup("Calibration finished")
 
