@@ -14,7 +14,7 @@ network:
       port: 30002  # Secondary client port is 30002
 
   raspi:  # Server running on the Raspberry Pi
-    ip: 192.168.137.3
+    ip: 169.254.38.136
     port: 9002
 
 
@@ -41,11 +41,13 @@ bricks:
 ur_scripts:
   directory: urscripts
   build: build.script
-  build_preview: build_preview.script
-  calibrate_platform: calibrate_platform.script
+  preview: build_preview.script
+  calibrate_camera: calibrate_camera.script
+  teach_platform: teach_platform.script
+  preview_taught_platform: preview_taught_platform.script
   gripper_urcap_preamble: gripper_urcap_preamble.script
   gripper_function_definition: gripper_function_definition.script
 
 calibration_data:
-  camera: camera_calibr.json
-  platform: platform_calibr.json
+  camera: camera_calibr.yml
+  platform: platform_calibr.yml

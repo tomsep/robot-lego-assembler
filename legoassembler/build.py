@@ -1,9 +1,70 @@
+"""
+
+Assumptions:
+        1. Base of the robot is parallel to the platform.
+        2. Camera is mounted on the -y side of the robot wrist.
+        3. Camera points to same direction as the gripper.
+        4. Build and part areas are parallel and have approx. same height (z).
+
+"""
+
 from __future__ import division
+from __future__ import print_function
 import json
 
 
-def paltform_calibration(server, z_clearance):
-    """ Runs platform calibration sequence to create new environment dictionary
+def teach_platform(server):
+
+    build_area = []
+
+    # Build area
+    for _ in range(2):
+        pose = json.loads(server.recv()[1:])  # [:1] to to get [1, ..] from p[1, ..]
+        print('Received build area pose: {}'.format(pose))
+        build_area.append(pose)
+
+    # Part area
+    pose = json.loads(server.recv()[1:])
+    print('Received part area pose: {}'.format(pose))
+    part_area = pose
+
+    env = {'taught_poses': {'build': build_area, 'part': part_area}}
+
+    return env
+
+
+def preview_taught_platform(server, calib, travel_height):
+
+    poses = calib['taught_poses']
+
+    params = {'wait_time': 0.3, 'velocity': 0.1, 'travel_z': travel_height}
+    communicate_parameters(server, params)
+
+    server.recv(header='pose')
+    server.send(str(poses['build'][0]))
+
+    server.recv(header='pose')
+    server.send(str(poses['build'][1]))
+
+    server.recv(header='pose')
+    server.send(str(poses['part']))
+
+    print('Preview finished!')
+
+
+def calibrate(server, travel_height, mv):
+    """ Runs calibration sequence to create new calibration dictionary
+
+    1. With teach mode enabled record three poses:
+        a. Instruct user to move the TCP to one corner of the build platform.
+        b. Same for diagonal opposite corner.
+        c. Same for the mid point of the part area.
+
+    2. Move to imaging position
+        a. Instruct user to place 2x2 RED brick directly under the camera.
+        b. Capture image and calculate and record unit pixel area.
+        c. Send confirmation to end ur program.
+
 
     Parameters
     ----------
@@ -17,7 +78,6 @@ def paltform_calibration(server, z_clearance):
     Returns
     -------
     dict
-        Environment dict
 
     """
 
@@ -35,39 +95,27 @@ def paltform_calibration(server, z_clearance):
         _append_xyz(build_area, pose)
 
     # Part area
-    for _ in range(2):
-        pose = json.loads(server.recv()[1:])
-        print('Received part area pose: {}'.format(pose))
-        _append_xyz(part_area, pose)
+    pose = json.loads(server.recv()[1:])
+    print('Received part area pose: {}'.format(pose))
+    _append_xyz(part_area, pose)
 
-    # travel z
-    max_z = max(x[2] for x in build_area + part_area)
-    travel_z = max_z + z_clearance
+    # Move to imaging pose
+    server.recv(header='pose')
+    imaging_pose = _parallel_to_floor(pose)
+    _add_to_pose(imaging_pose, 'z', travel_height)
+    server.send(imaging_pose)
 
-    environment = {'build_area': tuple(build_area), 'part_area': tuple(part_area),
-                   'travel_z': travel_z}
-    return environment
+    # Capture and calculate
+    server.recv(header='capture')
+    unit_area = mv.infer_unit_px_area()
 
+    env = {'poses': {'build': build_area, 'part': part_area[0]},
+           'unit_pixel_area': unit_area}
 
-def camera_calibration(server, env, mv):
-    """ Runs camera calibration sequence
+    return env
 
-    Parameters
-    ----------
-    server : URServer
-    env : dict
-        Environment dict.
-    mv : ???
-        Machine vision component.
-
-    Returns
-    -------
-    ???
-        Camera calibration.
-
-    """
-    raise NotImplementedError()
-
+def calibrate_camera(server, mv, travel_height):
+    raise NotImplementedError('Calibrate camera not impl.')
 
 def build_preview(server, env, z_clear=0.05):
     """ Run through (as preview) calibrated platform points with height (z) clearance
@@ -144,3 +192,24 @@ def communicate_parameters(server, params):
         response = str([params[msg]])
         server.send(response)
 
+
+def _add_to_pose(pose, name, val):
+    """ Add value to pose
+
+    Edits 'pose' in-place.
+
+    Parameters
+    ----------
+    pose : list
+        Pose as [x,y,z,rx,ry,rz].
+    name : str
+        One of: x,y,z,rx,ry,rz
+
+    val : float
+
+    """
+
+    if name == 'z':
+        pose[2] += val
+    else:
+        raise NotImplementedError('Addition for "{}" not implemented'.format(name))
