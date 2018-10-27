@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 import cv2 as cv
+import yaml
+
 from legoassembler.vision import get_unit_pixel_area, find_brick
+
+
+def color_definitions():
+    with open('../../config.yml', 'r') as f:
+        cfg = yaml.load(f)
+    return cfg['bricks']['colors']
 
 
 def test_finding_brick(monkeypatch):
@@ -19,7 +27,8 @@ def test_finding_brick(monkeypatch):
     path = './bin/2x2_red_duplo.jpg'
     monkeypatch.setattr('legoassembler.vision.remote_capture', patch_capture(path))
 
-    color = 'red'
+    color_defs = color_definitions()
+    color = color_defs['red']
 
     unit_px_area = get_unit_pixel_area(None, color, {})
 

@@ -1,0 +1,51 @@
+
+
+environment:
+  # Travel height for the robot arm.
+  travel_height: 0.3  # Meters
+
+network:
+  host:  # PC running the main program
+    ip: 192.168.137.1
+    port: 9001
+
+  ur:  # Is set in the UR controller's network setup panel.
+      ip: 192.168.137.2
+      port: 30002  # Secondary client port is 30002
+
+  raspi:  # Server running on the Raspberry Pi
+    ip: 192.168.137.3
+    port: 9002
+
+
+camera:
+  resolution:
+    x: 1200
+    y: 800
+
+
+bricks:
+  # HSV color ranges for bricks, e.g. from [0, 100, 100] to [10, 255, 255]
+  # Max values [180, 255, 255].
+  colors:
+    green:
+      - [60, 200, 50]
+      - [85, 255, 200]
+    red:
+      - [0, 100, 100]
+      - [10, 255, 255]
+    bright_yellow:
+      - [10, 200, 100]
+      - [35, 255, 255]
+
+ur_scripts:
+  directory: urscripts
+  build: build.script
+  build_preview: build_preview.script
+  calibrate_platform: calibrate_platform.script
+  gripper_urcap_preamble: gripper_urcap_preamble.script
+  gripper_function_definition: gripper_function_definition.script
+
+calibration_data:
+  camera: camera_calibr.json
+  platform: platform_calibr.json

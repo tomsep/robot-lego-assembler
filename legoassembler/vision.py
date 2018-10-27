@@ -5,9 +5,9 @@ import numpy as np
 import math
 import json
 
-HUE_RANGES = {'red': (np.array((0, 100, 100)), np.array((10, 255, 255))),
-              'bright_yellow': (np.array((10, 200, 100)), np.array((35, 255, 255))),
-              'green': (np.array((60, 200, 50)), np.array((85, 255, 200)))}
+HUE_RANGES = {'red': ((0, 100, 100), (10, 255, 255)),
+              'bright_yellow': ((10, 200, 100), (35, 255, 255)),
+              'green': ((60, 200, 50), (85, 255, 200))}
 
 
 def contour_center(contour):
@@ -17,13 +17,13 @@ def contour_center(contour):
     return (cx, cy)
 
 
-def detect_bricks_by_color(img, color_name, draw=True):
+def detect_bricks_by_color(img, color, draw=True):
     """ Get one part center point, angle and edges
 
     Parameters
     ----------
     img
-    color_name
+    color
     draw
 
     Returns
@@ -39,7 +39,7 @@ def detect_bricks_by_color(img, color_name, draw=True):
     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
     # Binary image by range
-    mask = cv.inRange(hsv, HUE_RANGES[color_name][0], HUE_RANGES[color_name][1])
+    mask = cv.inRange(hsv, np.array(color[0]), np.array(color[1]))
 
     _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
 
