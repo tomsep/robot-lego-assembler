@@ -35,9 +35,6 @@ class Server:
         if self.connection is not None:
             self.connection.close()
             self.connection = None
-        if self.socket is not None:
-            self.socket.close()
-            self.socket = None
 
     def send(self, data):
         _send(data, self.connection)
@@ -50,15 +47,13 @@ class Client:
 
     socket = None
 
-    def __init__(self):
-        self.socket = socket.socket()
-
     def __del__(self):
         """ Destructor
         """
         self.close()
 
     def connect(self, ip, port):
+        self.socket = socket.socket()
         self.socket.connect((ip, port))
 
     def close(self):

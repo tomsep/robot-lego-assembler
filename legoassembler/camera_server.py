@@ -23,7 +23,7 @@ def start(ip, port):
 
     serv = Server(ip, port)
     serv.accept()
-
+    # TODO: handle PiCameraValueError (when param out of valid range)
     with PiCamera() as camera:
         time.sleep(2)  # Allow camera to power up
 

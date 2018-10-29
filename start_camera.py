@@ -1,5 +1,8 @@
-from legoassembler.camera_server import start
+import struct
+import socket
 import yaml
+
+from legoassembler.camera_server import start
 
 if __name__ == '__main__':
 
@@ -8,4 +11,10 @@ if __name__ == '__main__':
 
     cfg_net = cfg['network']['raspi']
 
-    start(cfg_net['ip'], cfg_net['port'])
+    # TODO: handle PiCameraValueError (when param out of valid range)
+
+    while True:
+        try:
+            start(cfg_net['ip'], cfg_net['port'])
+        except (socket.error, struct.error):
+            print('Connection error. Service is restarted immediately.')
