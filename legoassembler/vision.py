@@ -34,7 +34,7 @@ def detect_bricks_by_color(img, color, draw=True):
     """
 
     bricks = []
-
+    orig_img = np.copy(img)
     img = cv.GaussianBlur(img, (5, 5), 0)  # reduces noise
     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
@@ -47,7 +47,10 @@ def detect_bricks_by_color(img, color, draw=True):
         area = cv.contourArea(contour)
 
         # Center point of contour
-        cx, cy = contour_center(contour)
+        try:
+            cx, cy = contour_center(contour)
+        except ZeroDivisionError:
+            continue
 
         # Get bounding rectangle corner points
         minrect = cv.minAreaRect(contour)
@@ -76,18 +79,19 @@ def detect_bricks_by_color(img, color, draw=True):
             length = 20
             x_arr = int(cx + length * math.cos(angle))
             y_arr = int(cy + length * math.sin(angle))
-            cv.line(img, (x_arr, y_arr), (cx, cy), color, size)
+            cv.line(orig_img, (x_arr, y_arr), (cx, cy), color, size)
 
             # Draw bounding rectangle
             for edge in edges:
-                cv.line(img, tuple(edge[0]), tuple(edge[1]), color, size)
+                cv.line(orig_img, tuple(edge[0]), tuple(edge[1]), color, size)
 
             # Draw center point
-            cv.circle(img, (cx, cy), size*2, color, -1)
+            cv.circle(orig_img, (cx, cy), size*2, color, -1)
 
-        if draw:
-            cv.imshow('', img)
-            cv.waitKey(1)
+    if draw:
+        cv.imshow('', orig_img)
+        cv.imshow('mask', mask)
+        cv.waitKey(1)
 
     return bricks
 
