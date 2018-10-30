@@ -2,6 +2,8 @@ from __future__ import division
 from __future__ import print_function
 import yaml
 import os
+import socket
+from warnings import warn
 
 from legoassembler import script_build_tools
 from legoassembler.communication import URServer, URClient, Client
@@ -165,6 +167,9 @@ def _discover_scripts(config, pckg_name='legoassembler'):
 def _start_networking(cfg):
     """ Start host server and connect clients
 
+    Allows program to continue even if some of the connections fail to open.
+    Warnings are thrown.
+
     Parameters
     ----------
     cfg : dict
@@ -181,13 +186,36 @@ def _start_networking(cfg):
     """
 
     net = cfg['network']
-    host = URServer(net['host']['ip'], net['host']['port'])
 
+    # SERVER to server UR
+    ip = net['host']['ip']
+    port = net['host']['port']
+    try:
+        host = URServer(ip, port)
+    except socket.error:
+        host = None
+        warn('Could not create host for {}:{}. Communication with the robot '
+              'will not work.'.format(ip, port))
+
+    # Client to access camera (raspi)
+    ip = net['raspi']['ip']
+    port = net['raspi']['port']
     cam_client = Client()
-    cam_client.connect(net['raspi']['ip'], net['raspi']['port'])
+    try:
+        cam_client.connect(net['raspi']['ip'], net['raspi']['port'])
+    except socket.error:
+        warn('Could not connect to {}:{}. Communication with the camera '
+                      'will not work.'.format(ip, port))
 
+    # Client to send scripts to UR
+    ip = net['ur']['ip']
+    port = net['ur']['port']
     ur_client = URClient()
-    ur_client.connect(net['ur']['ip'], net['ur']['port'])
+    try:
+        ur_client.connect(ip, port)
+    except socket.error:
+        warn('Could not connect to {}:{}. Communication with the robot '
+              'will not work.'.format(ip, port))
 
     return host, cam_client, ur_client
 
