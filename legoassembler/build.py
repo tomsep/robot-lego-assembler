@@ -12,6 +12,8 @@ from __future__ import division
 from __future__ import print_function
 import json
 
+from vision import MachineVision, remote_capture, contours, bounding_rectangle
+
 
 def teach_platform(server):
 
@@ -113,6 +115,19 @@ def calibrate(server, travel_height, mv):
            'unit_pixel_area': unit_area}
 
     return env
+
+
+def test_camera(server, cam_client, calib_platf, calib_cam, travel_height, colors):
+
+    #mv = MachineVision(colors)
+    cam_params = {}
+    img = remote_capture(cam_client, cam_params)
+
+    while True:
+        contours(img, colors['red'])
+
+
+
 
 def calibrate_camera(server, mv, travel_height):
     raise NotImplementedError('Calibrate camera not impl.')
