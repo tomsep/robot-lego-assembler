@@ -4,7 +4,120 @@ import cv2 as cv
 import numpy as np
 import math
 import json
+import yaml
 from copy import deepcopy
+
+
+class MachineVision:
+
+    def __init__(self, client, color_defs, cam_params, invert_x=False, invert_y=False):
+        self.client = client
+        self.cam_params = cam_params
+        self.colors = color_defs
+
+        self._invert_x = invert_x
+        self._invert_y = invert_y
+
+    def calibrate(self, side_mm, draw=True):
+        """ Gathers camera calibration info from still picture of a square brick
+
+        Captures an image and finds the largest brick of color 'red'.
+        Assumes that the largest brick is square. Then
+            * Computes pixel to mm conversion.
+            * Finds TCP (Tool Center Point) in the image's coordinate system.
+
+        Parameters
+        ----------
+        side_mm : float
+            Width (mm) of the calibration brick (shape is square).
+        draw : bool
+
+        Raises
+        ------
+        NoMatches
+            If not a single matching brick of color.
+
+        """
+        img = remote_capture(self.client, self.cam_params)
+        color_code = 'red'
+        bricks = find_bricks(img, self.colors[color_code], draw)
+        if bricks == []:
+            raise NoMatches('No bricks of color "{}" found.'.format(color_code))
+        largest = max(bricks, key=lambda x: x['area'])  # brick with largest area
+
+        side_as_pixels = math.sqrt(largest['area'])
+        self.pixels_in_mm = side_as_pixels / side_mm
+
+        self.tcp_xy = (largest['cx'], largest['cy'])
+
+    def save_calibration(self, fname):
+        data = {'pixels_in_mm': self.pixels_in_mm,
+                'tcp_xy': self.tcp_xy}
+        with open(fname, 'w') as f:
+            yaml.dump(data, f)
+
+    def load_calibration(self, fname):
+        with open(fname, 'r') as f:
+            data = yaml.load(f)
+
+        self.pixels_in_mm = data['pixels_in_mm']
+        self.tcp_xy = data['tcp_xy']
+
+    def dist_to_largest_brick(self, color, draw=True):
+        """ Get relative distance as mm to the largest brick of color
+
+        Parameters
+        ----------
+        color
+        draw
+
+        Returns
+        -------
+        dict
+                          x (mm) y (mm)       radians
+            {'distance': (float, float), 'angle': float}
+
+        Raises
+        ------
+        NoMatch
+            If not a single block of color found.
+
+        """
+
+        img = remote_capture(self.client, self.cam_params)
+        bricks = find_bricks(img, color, draw)
+
+        brick = max(bricks, key=lambda x: x['area'])
+
+        if brick == []:
+            raise NoMatches
+
+        midp_brick = (brick['cx'], brick['cy'])
+        dist_mm = self._distance_from_p1(self.tcp_xy, midp_brick, as_mm=True)
+
+        return {'distance': dist_mm, 'angle': brick['angle']}
+
+    def _distance_from_p1(self, p1, p2, as_mm):
+
+        dist_pix = [p2[0] - p1[0], p2[1] - p1[0]]
+
+        if self._invert_x:
+            dist_pix[0] = dist_pix[0] * -1
+
+        if self._invert_y:
+            dist_pix[1] = dist_pix[1] * -1
+
+        if as_mm:
+            dist_mm = (dist_pix[0] / self.pixels_in_mm, dist_pix[1] / self.pixels_in_mm)
+            return dist_mm
+        else:
+            return tuple(dist_pix)
+
+
+class NoMatches(Exception):
+    """ Error thrown when the system could not locate the element it was looking for.
+    """
+    pass
 
 
 def remote_capture(client, cam_params):
@@ -30,7 +143,7 @@ def remote_capture(client, cam_params):
 
 
 def find_bricks(img, color, draw=True):
-    """ Find bricks of certain color
+    """ Find all bricks of certain color
 
     Parameters
     ----------
@@ -54,24 +167,35 @@ def find_bricks(img, color, draw=True):
 
     rects = _bounding_rectangles(img, contours, draw)
 
-    # bricks = filter_by_area(rects, area=2300, margin=0.7)
-    #
-    # # Draw bricks left after filtering
-    # if draw:
-    #     for brick in bricks:
-    #         draw_rectangle(img, brick['points'])
-    #         annotate_rectangle(img, brick, 'area={}'.format(brick['area']))
-    #
-    #     cv.imshow('found', img)
-    #     cv.waitKey(1)
-
-    # return bricks
     return rects
 
 
 def save_img(img, fname):
     # TODO: What if dir doesn't exist?
     cv.imwrite(fname, img)
+
+
+def _find_largest_brick(img, color, draw=True):
+    bricks = find_bricks(img, color, draw)
+    if bricks == []:
+        return None
+    return max(bricks, key=lambda x: x['area'])  # brick with largest area
+
+
+def _img_midpoint(img):
+    yx = np.shape(img)[:2]  # take only first 2 dims
+    return [int(yx[1]), int(yx[0])]
+
+
+def _distance_from_img_center(img, point):
+
+    shape = np.shape(img)
+    midpoint = [shape[1] / 2, shape[0] / 2]
+
+    dx = abs(point[0] - midpoint[0])
+    dy = abs(point[1] - midpoint[1])
+
+    return math.sqrt(dx**2 + dy**2)
 
 
 def _mask_by_color(img, color, draw=True):
@@ -177,7 +301,7 @@ def _bounding_rectangles(img, contours, draw=True):
         angle = math.atan2(edge_longest[1][1] - edge_longest[0][1],
                            edge_longest[1][0] - edge_longest[0][0])
 
-        rect = {'cx': cx, 'cy':cy, 'area': area, 'points': points}
+        rect = {'cx': cx, 'cy':cy, 'area': area, 'points': points, 'angle': angle}
         rects.append(rect)
 
         if draw:
@@ -235,37 +359,6 @@ def _rectangle_center(points):
     cy = (points[0][1] + points[2][1]) / 2
 
     return int(cx), int(cy)
-
-
-def _get_unit_pixel_area(client, color, cam_params):
-    """ Unit pixel area from a still picture of single 2x2 brick
-
-    Unit pixel area is the are that one stud in the brick occupies, i.e.
-    2x2 brick's unit area is 1/4th of the full area.
-
-    Parameters
-    ----------
-    client : Client
-    color : tuple(float, float, float)
-        HSV color code.
-    cam_params : dict
-        Camera parameters.
-
-    Returns
-    -------
-    int
-        Unit pixel area.
-
-    """
-
-    img = remote_capture(client, cam_params)
-
-    bricks = find_bricks(img, color, draw=True)
-
-    if len(bricks) == 1:
-        return int(bricks[0]['area'] / 4)
-    else:
-        raise ValueError('Expected to find only 1 brick but found {}'.format(len(bricks)))
 
 
 def _filter_by_area(bricks, area, margin):
