@@ -6,15 +6,15 @@ environment:
 
 network:
   host:  # PC running the main program
-    ip: 192.168.137.1
+    ip: 192.168.1.78
     port: 9001
 
   ur:  # Is set in the UR controller's network setup panel.
-      ip: 192.168.137.2
+      ip: 192.168.1.198
       port: 30002  # Secondary client port is 30002
 
   raspi:  # Server running on the Raspberry Pi
-    ip: 169.254.38.136
+    ip: 192.168.1.218
     port: 9002
 
 
