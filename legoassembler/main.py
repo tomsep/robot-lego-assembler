@@ -33,7 +33,8 @@ def run(cfg):
     camera_calib = _calibrate_camera(cfg, host, ur_client, mv, load)
 
     if input('Test camera calibration? [Y/n]: ') == 'Y':
-        raise  NotImplementedError('Camera test not impl.')
+        _test_camera_calibration(cfg, host, ur_client, cam_client,
+                                 platform_calib, camera_calib)
 
     if input('Start building? [Y/n]: ') == 'Y':
         raise NotImplementedError('Building not impl.')
@@ -114,6 +115,16 @@ def _preview_taught_platform(cfg, host, ur_client, calib):
     _upload_scipt(cfg, 'preview_taught_platform', ur_client)
     host.accept()
     legoassembler.build.preview_taught_platform(host, calib, cfg['environment']['travel_height'])
+    host.close()
+
+
+def _test_camera_calibration(cfg, host, ur_client, cam_client, calib_platf, calib_cam):
+
+    _upload_scipt(cfg, 'test_camera_calibration', ur_client)
+    travel_h = cfg['environment']['travel_height']
+    colors = cfg['bricks']['colors']
+    host.accept()
+    legoassembler.build.test_camera(host, cam_client, calib_platf, calib_cam, travel_h, colors)
     host.close()
 
 

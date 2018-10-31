@@ -12,6 +12,8 @@ from __future__ import division
 from __future__ import print_function
 import json
 
+from vision import *
+
 
 def teach_platform(server):
 
@@ -65,7 +67,6 @@ def calibrate(server, travel_height, mv):
         b. Capture image and calculate and record unit pixel area.
         c. Send confirmation to end ur program.
 
-
     Parameters
     ----------
     server : URServer
@@ -114,8 +115,19 @@ def calibrate(server, travel_height, mv):
 
     return env
 
+
+def test_camera(server, cam_client, calib_platf, calib_cam, travel_height, colors):
+
+    #mv = MachineVision(colors)
+    cam_params = {}
+    img = remote_capture(cam_client, cam_params)
+
+    while True:
+        contours(img, colors['red'])
+
 def calibrate_camera(server, mv, travel_height):
     raise NotImplementedError('Calibrate camera not impl.')
+
 
 def build_preview(server, env, z_clear=0.05):
     """ Run through (as preview) calibrated platform points with height (z) clearance

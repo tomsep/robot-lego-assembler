@@ -29,14 +29,17 @@ bricks:
   # Max values [180, 255, 255].
   colors:
     green:
-      - [60, 200, 50]
-      - [85, 255, 200]
+      - [55, 100, 8]
+      - [85, 255, 133]
     red:
-      - [0, 100, 100]
-      - [10, 255, 255]
-    bright_yellow:
-      - [10, 200, 100]
-      - [35, 255, 255]
+      - [0, 150, 40]
+      - [5, 255, 141]
+    yellow:
+      - [10, 150, 70]
+      - [25, 255, 205]
+    blue:
+      - [100, 150, 10]
+      - [120, 255, 105]
 
 ur_scripts:
   directory: urscripts
@@ -47,6 +50,7 @@ ur_scripts:
   preview_taught_platform: preview_taught_platform.script
   gripper_urcap_preamble: gripper_urcap_preamble.script
   gripper_function_definition: gripper_function_definition.script
+  test_camera_calibration: test_camera_calibration.script
 
 calibration_data:
   camera: camera_calibr.yml
