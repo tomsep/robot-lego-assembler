@@ -10,13 +10,10 @@ from copy import deepcopy
 
 class MachineVision:
 
-    def __init__(self, client, color_defs, cam_params, invert_x=False, invert_y=False):
+    def __init__(self, client, color_defs, cam_params):
         self.client = client
         self.cam_params = cam_params
         self.colors = color_defs
-
-        self._invert_x = invert_x
-        self._invert_y = invert_y
 
     def calibrate(self, side_mm, draw=True):
         """ Gathers camera calibration info from still picture of a square brick
@@ -40,7 +37,7 @@ class MachineVision:
         """
         img = remote_capture(self.client, self.cam_params)
         color_code = 'red'
-        bricks = find_bricks(img, self.colors[color_code], draw)
+        bricks = _find_bricks_of_color(img, self.colors[color_code], draw)
         if bricks == []:
             raise NoMatches('No bricks of color "{}" found.'.format(color_code))
         largest = max(bricks, key=lambda x: x['area'])  # brick with largest area
@@ -63,49 +60,71 @@ class MachineVision:
         self.pixels_in_mm = data['pixels_in_mm']
         self.tcp_xy = data['tcp_xy']
 
-    def dist_to_largest_brick(self, color, draw=True):
-        """ Get relative distance as mm to the largest brick of color
+    def find_brick(self, color, size, margin=0.2, draw=True):
+        """ Localize brick with best dimension match and specified color
+
 
         Parameters
         ----------
-        color
-        draw
+        color : str
+            Color name.
+        size : array-like [float, float]
+            Width and length dimensions of the brick to find.
+        margin : float
+            How much the match may differ at most. Ex. 0.2 == 20%.
+        draw : bool
+            If the visualizations should be drawn.
 
         Returns
         -------
-        dict
-                          x (mm) y (mm)       radians
-            {'distance': (float, float), 'angle': float}
+        dict{'x': float, 'y': float, 'angle': float}
+                (mm)        (mm)         radians
+            Brick position relative to the TCP (tool center point). Units millimeters and
+            radians.
+
+            Coordinate system used:
+            ^
+            |
+            y
+            |
+            0/0---x--->
+            where angle is given w.r.t y-axis (-pi/4 .. pi/4] rad i.e. (-90 .. +90] deg.
 
         Raises
         ------
-        NoMatch
-            If not a single block of color found.
+        NoMatches
+            If no brick found within given margin or error.
 
         """
 
         img = remote_capture(self.client, self.cam_params)
-        bricks = find_bricks(img, color, draw)
+        bricks = _find_bricks_of_color(img, self.colors[color])
 
-        brick = max(bricks, key=lambda x: x['area'])
+        brick = _best_rect_ratio_match(bricks, size)
 
-        if brick == []:
+        target_ratio = size[0] / size[1]
+        brick_ratio = brick['dimensions'][0] / brick['dimensions'][1]
+
+        if abs(target_ratio - brick_ratio) > margin:
             raise NoMatches
 
-        midp_brick = (brick['cx'], brick['cy'])
-        dist_mm = self._distance_from_p1(self.tcp_xy, midp_brick, as_mm=True)
+        angle = brick['angle'] + math.radians(90)  # Angle w.r.t y
 
-        return {'distance': dist_mm, 'angle': brick['angle']}
+        # Angle should always be between (-90, +90]
+        if angle > math.degrees(90):
+            angle -= math.degrees(180)
+        elif angle <= math.degrees(-90):
+            angle += math.degrees(180)
+
+        x_mm, y_mm = self._distance_from_p1(self.tcp_xy, (brick['cx'], brick['cy']),
+                                       as_mm=True)
+
+        match = {'x': x_mm, 'y': y_mm, 'angle': angle}
+        return match
 
     def _distance_from_p1(self, p1, p2, as_mm):
 
         dist_pix = [p2[0] - p1[0], p2[1] - p1[0]]
-
-        if self._invert_x:
-            dist_pix[0] = dist_pix[0] * -1
-
-        if self._invert_y:
-            dist_pix[1] = dist_pix[1] * -1
 
         if as_mm:
             dist_mm = (dist_pix[0] / self.pixels_in_mm, dist_pix[1] / self.pixels_in_mm)
@@ -142,7 +161,12 @@ def remote_capture(client, cam_params):
     return cv.imdecode(nparr, cv.IMREAD_COLOR)
 
 
-def find_bricks(img, color, draw=True):
+def save_img(img, fname):
+    # TODO: What if dir doesn't exist?
+    cv.imwrite(fname, img)
+
+
+def _find_bricks_of_color(img, color, draw=True):
     """ Find all bricks of certain color
 
     Parameters
@@ -165,21 +189,9 @@ def find_bricks(img, color, draw=True):
         draw_on = None
     contours = _find_contours(mask, draw_on)
 
-    rects = _bounding_rectangles(img, contours, draw)
+    bricks = _bounding_rectangles(img, contours, draw)
 
-    return rects
-
-
-def save_img(img, fname):
-    # TODO: What if dir doesn't exist?
-    cv.imwrite(fname, img)
-
-
-def _find_largest_brick(img, color, draw=True):
-    bricks = find_bricks(img, color, draw)
-    if bricks == []:
-        return None
-    return max(bricks, key=lambda x: x['area'])  # brick with largest area
+    return bricks
 
 
 def _img_midpoint(img):
@@ -256,12 +268,19 @@ def _find_contours(mask, draw_on=None):
 
 
 def _rectangle_area(points):
+    """ Area of an rectangle
+    Assumes points are in order.
 
-    # Calculate diagonal differences for x and y.
-    width = abs(points[0][0] - points[2][0])
-    height = abs(points[0][1] - points[2][1])
+    Returns
+    -------
+    int
 
-    return int(width * height)
+    """
+
+    lengths = _edge_lengths(points)
+    area = lengths[0] * lengths[1]
+
+    return area
 
 
 def _bounding_rectangles(img, contours, draw=True):
@@ -290,18 +309,11 @@ def _bounding_rectangles(img, contours, draw=True):
         cx, cy = _rectangle_center(points)
         area = _rectangle_area(points)
 
-        # Find longest edge
-        edges = [(points[i], points[i + 1]) for i in range(len(points) - 1)]
-        edges.append((points[0], points[-1]))
+        angle = math.radians(minrect[2])
+        dims = _rectangle_dimensions(points)
 
-        # Rectangle angle
-        edge_lengths = [abs(e[1][0] - e[0][0]) + abs(e[1][1] - e[0][1]) for e in edges]
-        edge_longest = edges[np.argmax(edge_lengths)]
-        # Get angle for longest edge
-        angle = math.atan2(edge_longest[1][1] - edge_longest[0][1],
-                           edge_longest[1][0] - edge_longest[0][0])
-
-        rect = {'cx': cx, 'cy':cy, 'area': area, 'points': points, 'angle': angle}
+        rect = {'cx': cx, 'cy': cy, 'area': area,
+                'angle': angle, 'a': minrect[0], 'b': minrect[1], 'dimensions': dims}
         rects.append(rect)
 
         if draw:
@@ -315,6 +327,8 @@ def _bounding_rectangles(img, contours, draw=True):
             cv.arrowedLine(img_, (cx, cy), (x_arr, y_arr), draw_color,size, tipLength=0.3)
 
             # Draw bounding rectangle
+            edges = [(points[i], points[i + 1]) for i in range(len(points) - 1)]
+            edges.append((points[0], points[-1]))
             for edge in edges:
                 cv.line(img_, tuple(edge[0]), tuple(edge[1]), draw_color, size)
 
@@ -384,3 +398,51 @@ def _filter_by_area(bricks, area, margin):
             filtered.append(deepcopy(brick))
 
     return filtered
+
+
+def _edge_lengths(points):
+    """ Compute edge lengths from ordered points
+    Assumes points are in order.
+
+    Returns
+    -------
+    list[float, ..]
+
+    """
+
+    if len(points) != 4:
+        raise ValueError('Expected 4 points instead of {}'.format(len(points)))
+
+    lengths = []
+
+    for i in range(-2, 3):
+        dx = abs(points[i][0] - points[i + 1][0])
+        dy = abs(points[i][1] - points[i + 1][1])
+        length = math.sqrt(dx ** 2 + dy ** 2)
+        lengths.append(length)
+
+    return lengths
+
+
+def _rectangle_dimensions(points):
+    """ Width and height of rectangle from 4 points
+
+    Width is the shorter of the edges and length the longer one.
+
+    Returns
+    -------
+    tuple(float, float)
+
+    """
+    ls = _edge_lengths(points)[:2]
+    return (min(ls), max(ls))
+
+
+def _best_rect_ratio_match(bricks, size):
+
+    def _ratio(_size):
+        return _size[0] / _size[1]
+
+    target_ratio = _ratio(size)
+
+    return min(bricks, key=lambda x: abs(_ratio(x['dimensions']) - target_ratio))
