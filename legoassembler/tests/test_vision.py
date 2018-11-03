@@ -14,7 +14,7 @@ def _load_color_definitions():
     return cfg['bricks']['colors']
 
 
-def _find_bricks_of_color_when_multiple_matches():
+def test_find_bricks_of_color_when_multiple_matches():
     """ Test that correct amount of matches is returned"""
 
     fpath = './img/various_duplos_1.jpg'
@@ -92,10 +92,16 @@ class TestMachineVision:
         # Test pixels_in_mm
         assert abs(mv.pixels_in_mm - actual_pixels_in_mm) < eps
 
-    def test_find_largest_brick(self, monkeypatch):
+    def test_find_brick(self, monkeypatch):
         """ Test that the found brick has correct center point and angle
 
-        Both +y quarters are ok for the angle.
+        Coordinate system of result:
+        ^
+        |
+        y
+        |
+        0/0---x--->
+        where angle is given w.r.t y-axis and 0/0 is at tool center point.
 
         """
 
@@ -128,7 +134,7 @@ class TestMachineVision:
 
         # From tcp to rect midp
         actual_dist_x = (rect_midp[0] - fake_tcp_xy[0]) / actual_pixels_in_mm
-        actual_dist_y = (rect_midp[1] - fake_tcp_xy[1]) / actual_pixels_in_mm
+        actual_dist_y = -(rect_midp[1] - fake_tcp_xy[1]) / actual_pixels_in_mm
 
         eps = 5
         assert abs(res['x'] - actual_dist_x) < eps

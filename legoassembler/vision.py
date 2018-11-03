@@ -127,7 +127,7 @@ class MachineVision:
 
         x_mm, y_mm = self._distance_from_p1(self.tcp_xy, (brick['cx'], brick['cy']),
                                        as_mm=True)
-
+        y_mm = -y_mm  # Change y axis direction
         match = {'x': x_mm, 'y': y_mm, 'angle': angle}
         return match
 
