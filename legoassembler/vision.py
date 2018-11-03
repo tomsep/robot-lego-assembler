@@ -15,11 +15,10 @@ class MachineVision:
         self.cam_params = cam_params
         self.colors = color_defs
 
-    def calibrate(self, side_mm, draw=True):
-        """ Gathers camera calibration info from still picture of a square brick
+    def calibrate(self, side_mm, color, draw=True):
+        """ Gathers camera calibration info from a still picture of a square brick
 
-        Captures an image and finds the largest brick of color 'red'.
-        Assumes that the largest brick is square. Then
+        Captures an image and finds the best square dimension match brick of color 'red'.
             * Computes pixel to mm conversion.
             * Finds TCP (Tool Center Point) in the image's coordinate system.
 
@@ -27,25 +26,35 @@ class MachineVision:
         ----------
         side_mm : float
             Width (mm) of the calibration brick (shape is square).
+        color : str
+            Color name for the calibration block used.
         draw : bool
 
         Raises
         ------
         NoMatches
-            If not a single matching brick of color.
+            If not a single matching brick of color within margin of error found.
 
         """
-        img = remote_capture(self.client, self.cam_params)
-        color_code = 'red'
-        bricks = _find_bricks_of_color(img, self.colors[color_code], draw)
-        if bricks == []:
-            raise NoMatches('No bricks of color "{}" found.'.format(color_code))
-        largest = max(bricks, key=lambda x: x['area'])  # brick with largest area
 
-        side_as_pixels = math.sqrt(largest['area'])
+        margin = 0.025
+        size = (1, 1)
+        img = remote_capture(self.client, self.cam_params)
+        bricks = _find_bricks_of_color(img, self.colors[color], draw)
+
+        brick = _best_rect_ratio_match(bricks, size)
+
+        target_ratio = size[0] / size[1]
+        brick_ratio = brick['dimensions'][0] / brick['dimensions'][1]
+
+        if abs(target_ratio - brick_ratio) > margin:
+            raise NoMatches('Found {} bricks of color {} but none of them were within '
+                            'margin of error {}%.'.format(len(bricks), color, margin*100))
+
+        side_as_pixels = math.sqrt(brick['area'])
         self.pixels_in_mm = side_as_pixels / side_mm
 
-        self.tcp_xy = (largest['cx'], largest['cy'])
+        self.tcp_xy = (brick['cx'], brick['cy'])
 
     def save_calibration(self, fname):
         data = {'pixels_in_mm': self.pixels_in_mm,
@@ -98,7 +107,7 @@ class MachineVision:
         """
 
         img = remote_capture(self.client, self.cam_params)
-        bricks = _find_bricks_of_color(img, self.colors[color])
+        bricks = _find_bricks_of_color(img, self.colors[color], draw)
 
         brick = _best_rect_ratio_match(bricks, size)
 

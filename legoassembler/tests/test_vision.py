@@ -66,6 +66,7 @@ class TestMachineVision:
         # Load test image
         fpath = './img/rect_x143_y294_30degree_color_hsv20%_side95px.jpg'
         colors = {'red': ([46, 250, 250], [53, 255, 255])}
+        color = 'red'
         rect_actual_width_pixels = 95
         side_mm = 10
         actual_pixels_in_mm = rect_actual_width_pixels / side_mm
@@ -81,7 +82,7 @@ class TestMachineVision:
         client = MagicMock()
         mv = MachineVision(client, colors, {})
 
-        mv.calibrate(side_mm, draw=False)
+        mv.calibrate(side_mm, color, draw=False)
 
         eps = 5
         # Test midpoint
