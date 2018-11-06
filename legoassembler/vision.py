@@ -117,7 +117,7 @@ class MachineVision:
         if abs(target_ratio - brick_ratio) > margin:
             raise NoMatches
 
-        angle = brick['angle'] + math.radians(90)  # Angle w.r.t y
+        angle = brick['angle']# + math.radians(90)  # Angle w.r.t y
 
         # Angle should always be between (-90, +90]
         if angle > math.degrees(90):
@@ -133,7 +133,7 @@ class MachineVision:
 
     def _distance_from_p1(self, p1, p2, as_mm):
 
-        dist_pix = [p2[0] - p1[0], p2[1] - p1[0]]
+        dist_pix = [p2[0] - p1[0], p2[1] - p1[1]]
 
         if as_mm:
             dist_mm = (dist_pix[0] / self.pixels_in_mm, dist_pix[1] / self.pixels_in_mm)
