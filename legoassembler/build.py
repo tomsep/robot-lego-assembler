@@ -12,6 +12,7 @@ from __future__ import division
 from __future__ import print_function
 import json
 import time
+import numpy as np
 
 from vision import *
 
@@ -19,6 +20,11 @@ from vision import *
 def teach_platform(rob):
 
     build_area = []
+
+    def _level_pose(p_):
+        p_[3] = 2.2214
+        p_[4] = -2.2214
+        return p_
 
     rob.popup('Hit continue to start guided calibration procedure.', blocking=True)
     rob.popup('Continue to initialize gripper.', blocking=True)
@@ -31,23 +37,17 @@ def teach_platform(rob):
               ' Guide the arm to grab the block.'
     rob.teachmode(True, msg)
 
-    #rob.popup('Place 2x2 block on one corner of the build platform.'
-    #          ' Guide the arm to grab the block.', blocking=True)
-    build_area.append(rob.get_tcp())
+    build_area.append(_level_pose(rob.get_tcp()))
 
     msg = 'Place 2x2 block on the diagonal opposite corner of the build platform.' \
               ' Guide the arm to grab the block.'
     rob.teachmode(True, msg)
-    #rob.popup('Place 2x2 block on the diagonal opposite corner of the build platform.'
-    #          ' Guide the arm to grab the block.', blocking=True)
-    build_area.append(rob.get_tcp())
+    build_area.append(_level_pose(rob.get_tcp()))
 
     msg = 'Move the gripper to middle (ground level)' \
               ' of the pickup platform.'
     rob.teachmode(True, msg)
-    #rob.popup('Move the gripper to middle (ground level)'
-    #          ' of the pickup platform.', blocking=True)
-    part_area = rob.get_tcp()
+    part_area = _level_pose(rob.get_tcp())
 
     rob.teachmode(False)
     rob.popup('Teaching finished!')
@@ -216,10 +216,16 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
     time.sleep(wait)
 
     # Take new image
-    match = mv.find_brick(color, (1, 1), margin=0.2, draw=True)
-    #match = {'x': 30, 'y': -20, 'angle': math.radians(-15)}
+    match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+
+    wrist_angle = rob.get_tcp()[5]
+    rot = np.array([[math.cos(wrist_angle), math.sin(wrist_angle)],
+                    [-math.sin(wrist_angle), math.cos(wrist_angle)]])
+
+    target = np.matmul(rot, [[match['y']], [match['x']]])
     print(match)
-    pose = [-match['y'] / 1000, match['x'] / 1000, 0, 0, 0, 0]
+    pose = [-target[0, 0] / 1000, target[1, 0] / 1000, 0, 0, 0, 0]
+    print(pose)
     rob.move('j', pose, v=vel, a=a, relative=True)
     time.sleep(wait)
     joints = [0, 0, 0, 0, 0, match['angle']]
