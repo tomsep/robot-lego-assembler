@@ -27,18 +27,26 @@ def teach_platform(rob):
 
     # TODO: teach safe starting position
 
-    rob.teachmode(True)
+    msg = 'Place 2x2 block on one corner of the build platform.' \
+              ' Guide the arm to grab the block.'
+    rob.teachmode(True, msg)
 
-    rob.popup('Place 2x2 block on one corner of the build platform.'
-              ' Guide the arm to grab the block.', blocking=True)
+    #rob.popup('Place 2x2 block on one corner of the build platform.'
+    #          ' Guide the arm to grab the block.', blocking=True)
     build_area.append(rob.get_tcp())
 
-    rob.popup('Place 2x2 block on the diagonal opposite corner of the build platform.'
-              ' Guide the arm to grab the block.', blocking=True)
+    msg = 'Place 2x2 block on the diagonal opposite corner of the build platform.' \
+              ' Guide the arm to grab the block.'
+    rob.teachmode(True, msg)
+    #rob.popup('Place 2x2 block on the diagonal opposite corner of the build platform.'
+    #          ' Guide the arm to grab the block.', blocking=True)
     build_area.append(rob.get_tcp())
 
-    rob.popup('Move the gripper to middle (ground level)'
-              ' of the pickup platform.', blocking=True)
+    msg = 'Move the gripper to middle (ground level)' \
+              ' of the pickup platform.'
+    rob.teachmode(True, msg)
+    #rob.popup('Move the gripper to middle (ground level)'
+    #          ' of the pickup platform.', blocking=True)
     part_area = rob.get_tcp()
 
     rob.teachmode(False)
@@ -203,14 +211,15 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
     pose = [-0.03, 0.02, 0, 0, 0, 0]
     rob.move('j', pose, v=vel, a=a, relative=True)
     time.sleep(wait)
-    joints = [0, 0, 0, 0, 0, math.radians(15)]
+    joints = [0, 0, 0, 0, 0, math.radians(10)]
     rob.move_joints('j', joints, v=vel, a=a, relative=True)
     time.sleep(wait)
 
     # Take new image
     match = mv.find_brick(color, (1, 1), margin=0.2, draw=True)
     #match = {'x': 30, 'y': -20, 'angle': math.radians(-15)}
-    pose = [match['x'] / 1000, match['y'] / 1000, 0, 0, 0, 0]
+    print(match)
+    pose = [match['x'] / 1000, -match['y'] / 1000, 0, 0, 0, 0]
     rob.move('j', pose, v=vel, a=a, relative=True)
     time.sleep(wait)
     joints = [0, 0, 0, 0, 0, match['angle']]

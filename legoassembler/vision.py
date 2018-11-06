@@ -37,7 +37,7 @@ class MachineVision:
 
         """
 
-        margin = 0.025
+        margin = 0.05
         size = (1, 1)
         img = remote_capture(self.client, self.cam_params)
         bricks = _find_bricks_of_color(img, self.colors[color], draw)
@@ -450,7 +450,10 @@ def _rectangle_dimensions(points):
 def _best_rect_ratio_match(bricks, size):
 
     def _ratio(_size):
-        return _size[0] / _size[1]
+        if _size[1] == 0:
+            return 0
+        else:
+            return _size[0] / _size[1]
 
     target_ratio = _ratio(size)
 

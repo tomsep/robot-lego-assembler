@@ -11,12 +11,17 @@ from legoassembler.communication import URClient
 
 class Robot:
 
-    def __init__(self, ip):
+    def __init__(self, ip, grip_preamble, grip_funcdef, no_gripper=False):
 
         self.mod_client = ModbusTcpClient(ip, 502)
         self.script_client = URClient()
         self.script_client.connect(ip, 30001)
         self._state_reg = 128
+        self._no_gripper = no_gripper
+
+        if self._no_gripper is False:
+            self._load_gripper_script(grip_preamble, grip_funcdef)
+
 
     def move(self, mtype, pose, v, a, relative=False):
 
@@ -34,15 +39,9 @@ class Robot:
     def move_joints(self, mtype, pose, v, a, relative=False):
 
         if relative:
-            prog = 'p1 = get_actual_joint_positions()' \
+            prog = 'p1 = get_actual_tcp_pose()' \
                    'p2 = p{}' \
-                   'p1[0] = p1[0] + p2[0]' \
-                   'p1[1] = p1[1] + p2[1]' \
-                   'p1[2] = p1[2] + p2[2]' \
-                   'p1[3] = p1[3] + p2[3]' \
-                   'p1[4] = p1[4] + p2[4]' \
-                   'p1[5] = p1[5] + p2[5]' \
-                   'pose = get_forward_kin(p1)' \
+                   'pose = pose_add(p1, p2)' \
                    'move{}(pose,a={},v={})' \
                    ''.format(pose, mtype, a, v)
         else:
@@ -50,11 +49,16 @@ class Robot:
 
         self._run(prog)
 
-    def teachmode(self, on):
+    def teachmode(self, on, popup=''):
         if on:
             prog = 'teach_mode()\n'
+            if popup != '':
+                prog += 'popup("{}", blocking=True)\n'.format(popup)
+
         else:
             prog = 'end_teach_mode()\n'
+
+        self._run(prog)
 
     def get_tcp(self):
         # TODO: use decimal to get rid of floating point errors?
@@ -139,23 +143,32 @@ fun(135, ps[5])
         return status.bits[0]
 
     def grip(self, closed, speed=10, force=10):
-        pass
+
+        if self._no_gripper:
+            return
+
+        s = self._gripper_script.replace('$$CLOSED$$', str(closed))
+        s = s.replace('$$SPEED$$', str(speed))
+        s = s.replace('$$FORCE$$', str(force))
+        self._run(s)
+
+    def _load_gripper_script(self, preamble, funcdef):
+
+        with open(preamble, 'r') as f:
+            script = f.read()
+
+        with open(funcdef, 'r') as f:
+            fdef = f.read()
+
+        script += '\n' + fdef + '\n'
+        self._gripper_script = script
 
 if __name__ == '__main__':
 
     ip = '192.168.71.128'
-    rob = Robot(ip)
-    print(rob.get_joint_positions())
-    builder = BinaryPayloadBuilder(byteorder=Endian.Big,
-                                   wordorder=Endian.Little)
-    builder.add_16bit_int(-155)
-    payload = builder.to_registers()
-    print(payload)
-    #payload = builder.build()
-    #print(payload)
-    #rob.mod_client.write_registers(0, payload, unit=1)
-    regs = rob.mod_client.read_holding_registers(0, 1, skip_decode=True, skip_encode=True)
-    #decoder = BinaryPayloadDecoder.fromRegisters(regs.registers, byteorder=Endian.Big, wordorder=Endian.Big)
-    #print(decoder.decode_32bit_float())
+    ip = '192.168.1.198'
+    rob = Robot(ip, 's', 's', no_gripper=True)
 
-    print(regs.registers)
+    pose = [0, 0, 0, 0, 0, radians(15)]
+    rob.move_joints('j', pose, v=0.2, a=0.1, relative=True)
+    print('done')

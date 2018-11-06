@@ -9,6 +9,7 @@ from legoassembler import script_build_tools
 from legoassembler.communication import URServer, URClient, Client
 import legoassembler.build
 from legoassembler.robot import Robot
+from legoassembler.vision import MachineVision
 
 
 def run(cfg):
@@ -17,7 +18,8 @@ def run(cfg):
     host, cam_client, ur_client = _start_networking(cfg)    # Server and clients
     mv = _mv_setup(cfg, cam_client)                               # Machine vision
 
-    rob = Robot(cfg['network']['ur']['ip'])
+    rob = Robot(cfg['network']['ur']['ip'], cfg['ur_scripts']['gripper_urcap_preamble'],
+                cfg['ur_scripts']['gripper_function_definition'])
 
     if input('Teach platform? [Y/n]: ') == 'Y':
         load = False
@@ -260,7 +262,7 @@ def _upload_scipt(cfg, name, ur_client):
 
 def _mv_setup(cfg, cam_client):
 
-    mv = None
+    mv = MachineVision(cam_client, cfg['bricks']['colors'], {'iso': 800})
 
     return mv
 

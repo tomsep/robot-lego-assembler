@@ -2,7 +2,7 @@
 
 environment:
   # Travel height for the robot arm.
-  travel_height: 0.3  # Meters
+  travel_height: 0.2  # Meters
 
 network:
   host:  # PC running the main program
