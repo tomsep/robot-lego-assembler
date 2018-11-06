@@ -32,7 +32,7 @@ def run(cfg):
         load = False
     else:
         load = True
-    camera_calib = _calibrate_camera(cfg, host, ur_client, mv, load)
+    camera_calib = _calibrate_camera(cfg, rob, mv, platform_calib, load)
 
     if input('Test camera calibration? [Y/n]: ') == 'Y':
         _test_camera_calibration(cfg, host, ur_client, cam_client,
@@ -57,19 +57,19 @@ def _teach_platform(cfg, rob, load):
     return calib
 
 
-def _calibrate_camera(cfg, host, ur_client, mv, load):
+def _calibrate_camera(cfg, rob, mv, platf_calib, load):
 
     if load:
         with open(cfg['calibration_data']['camera'], 'r') as f:
             calib = yaml.load(f)
     else:
         with open(cfg['calibration_data']['camera'], 'w') as f:
-            _upload_scipt(cfg, 'calibrate_camera', ur_client)
-            host.accept()
+            #_upload_scipt(cfg, 'calibrate_camera', ur_client)
+            #host.accept()
             travel_height = cfg['environment']['travel_height']
-            calib = legoassembler.build.calibrate_camera(host, mv, travel_height)
+            calib = legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib, 32, 'red')
             f.write(yaml.dump(calib))
-            host.close()
+            #host.close()
     return calib
 
 

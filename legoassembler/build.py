@@ -168,8 +168,66 @@ def test_camera(server, cam_client, calib_platf, calib_cam, travel_height, color
     while True:
         contours(img, colors['red'])
 
-def calibrate_camera(server, mv, travel_height):
-    raise NotImplementedError('Calibrate camera not impl.')
+
+def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
+
+    wait = 0.1
+    vel = 3
+    a = 0.1
+
+    test_pose = calib['taught_poses']['build'][0]
+
+    rob.popup('Press continue to start camera calibration', blocking=True)
+
+    # Goto starting height
+    pose = rob.get_tcp()
+    pose[2] = test_pose[2] + travel_height
+    rob.move('l', pose, v=vel, a=a)
+    time.sleep(wait)
+
+    # Open gripper
+    rob.grip(closed=76)
+
+    pose = deepcopy(test_pose)
+    pose[2] += travel_height
+    rob.move('j', pose, v=vel, a=a)
+    time.sleep(wait)
+    rob.move('l', test_pose, v=vel, a=a)
+    time.sleep(wait * 2)
+    rob.move('l', pose, v=vel, a=a)
+
+    # Take calibration image
+    mv.calibrate(brick2x2_side_mm, color)
+
+    # Move aside
+    pose = [-0.03, 0.02, 0, 0, 0, 0]
+    rob.move('j', pose, v=vel, a=a, relative=True)
+    time.sleep(wait)
+    joints = [0, 0, 0, 0, 0, math.radians(15)]
+    rob.move_joints('j', joints, v=vel, a=a, relative=True)
+    time.sleep(wait)
+
+    # Take new image
+    match = mv.find_brick(color, (1, 1), margin=0.2, draw=True)
+    #match = {'x': 30, 'y': -20, 'angle': math.radians(-15)}
+    pose = [match['x'] / 1000, match['y'] / 1000, 0, 0, 0, 0]
+    rob.move('j', pose, v=vel, a=a, relative=True)
+    time.sleep(wait)
+    joints = [0, 0, 0, 0, 0, match['angle']]
+    rob.move_joints('j', joints, v=vel, a=a, relative=True)
+    time.sleep(wait)
+
+    # Touch the match
+    pose = [0 for _ in range(6)]
+    pose[2] = -travel_height + 0.033
+    rob.move('l', pose, v=vel, a=a, relative=True)
+    time.sleep(wait * 2)
+    pose[2] = travel_height - 0.033
+    rob.move('l', pose, v=vel, a=a, relative=True)
+    time.sleep(wait)
+
+    rob.popup('Camera calibration finished!')
+    print('Camera calibration finished!')
 
 
 def build_preview(server, env, z_clear=0.05):
