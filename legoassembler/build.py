@@ -11,46 +11,89 @@ Assumptions:
 from __future__ import division
 from __future__ import print_function
 import json
+import time
 
 from vision import *
 
 
-def teach_platform(server):
+def teach_platform(rob):
 
     build_area = []
 
-    # Build area
-    for _ in range(2):
-        pose = json.loads(server.recv()[1:])  # [:1] to to get [1, ..] from p[1, ..]
-        print('Received build area pose: {}'.format(pose))
-        build_area.append(pose)
+    rob.popup('Hit continue to start guided calibration procedure.', blocking=True)
+    rob.popup('Continue to initialize gripper.', blocking=True)
 
-    # Part area
-    pose = json.loads(server.recv()[1:])
-    print('Received part area pose: {}'.format(pose))
-    part_area = pose
+    rob.grip(closed=76)
+
+    # TODO: teach safe starting position
+
+    rob.teachmode(True)
+
+    rob.popup('Place 2x2 block on one corner of the build platform.'
+              ' Guide the arm to grab the block.', blocking=True)
+    build_area.append(rob.get_tcp())
+
+    rob.popup('Place 2x2 block on the diagonal opposite corner of the build platform.'
+              ' Guide the arm to grab the block.', blocking=True)
+    build_area.append(rob.get_tcp())
+
+    rob.popup('Move the gripper to middle (ground level)'
+              ' of the pickup platform.', blocking=True)
+    part_area = rob.get_tcp()
+
+    rob.teachmode(False)
+    rob.popup('Teaching finished!')
 
     env = {'taught_poses': {'build': build_area, 'part': part_area}}
+
+    print('Teaching finished!')
 
     return env
 
 
-def preview_taught_platform(server, calib, travel_height):
+def preview_taught_platform(rob, calib, travel_height):
 
+    wait = 0.1
+    vel = 0.3
+    a = 0.1
     poses = calib['taught_poses']
+    rob.popup('Press continue to start preview', blocking=True)
 
-    params = {'wait_time': 0.3, 'velocity': 0.1, 'travel_z': travel_height}
-    communicate_parameters(server, params)
+    pose = rob.get_tcp()
+    pose[2] = poses['build'][0][2] + travel_height
+    rob.move('l', pose, v=vel, a=a)
 
-    server.recv(header='pose')
-    server.send(str(poses['build'][0]))
+    # Open gripper
+    rob.grip(closed=76)
 
-    server.recv(header='pose')
-    server.send(str(poses['build'][1]))
+    pose = deepcopy(poses['build'][0])
+    pose[2] += travel_height
+    rob.move('j', pose, v=vel, a=a)
+    time.sleep(wait)
+    rob.move('l', poses['build'][0], v=vel, a=a)
+    time.sleep(wait)
+    rob.move('l', pose, v=vel, a=a)
+    time.sleep(wait)
 
-    server.recv(header='pose')
-    server.send(str(poses['part']))
+    pose = deepcopy(poses['build'][1])
+    pose[2] += travel_height
+    rob.move('j', pose, v=vel, a=a)
+    time.sleep(wait)
+    rob.move('l', poses['build'][1], v=vel, a=a)
+    time.sleep(wait)
+    rob.move('l', pose, v=vel, a=a)
+    time.sleep(wait)
 
+    pose = deepcopy(poses['part'])
+    pose[2] += travel_height
+    rob.move('j', pose, v=vel, a=a)
+    time.sleep(wait)
+    rob.move('l', poses['part'], v=vel, a=a)
+    time.sleep(wait)
+    rob.move('l', pose, v=vel, a=a)
+    time.sleep(wait)
+
+    rob.popup('Preview finished!')
     print('Preview finished!')
 
 

@@ -8,23 +8,25 @@ from warnings import warn
 from legoassembler import script_build_tools
 from legoassembler.communication import URServer, URClient, Client
 import legoassembler.build
+from legoassembler.robot import Robot
 
 
 def run(cfg):
     """ Run main app
     """
-
     host, cam_client, ur_client = _start_networking(cfg)    # Server and clients
     mv = _mv_setup(cfg, cam_client)                               # Machine vision
+
+    rob = Robot(cfg['network']['ur']['ip'])
 
     if input('Teach platform? [Y/n]: ') == 'Y':
         load = False
     else:
         load = True
-    platform_calib = _teach_platform(cfg, host, ur_client, load)
+    platform_calib = _teach_platform(cfg, rob, load)
 
     if input('Preview taught platform? [Y/n]: ') == 'Y':
-        _preview_taught_platform(cfg, host, ur_client, platform_calib)
+        _preview_taught_platform(cfg, rob, platform_calib)
 
     if input('Calibrate camera? [Y/n]: ') == 'Y':
         load = False
@@ -40,18 +42,18 @@ def run(cfg):
         raise NotImplementedError('Building not impl.')
 
 
-def _teach_platform(cfg, host, ur_client, load):
+def _teach_platform(cfg, rob, load):
 
     if load:
         with open(cfg['calibration_data']['platform'], 'r') as f:
             calib = yaml.load(f)
     else:
         with open(cfg['calibration_data']['platform'], 'w') as f:
-            _upload_scipt(cfg, 'teach_platform', ur_client)
-            host.accept()
-            calib = legoassembler.build.teach_platform(host)
+            #_upload_scipt(cfg, 'teach_platform', ur_client)
+            #host.accept()
+            calib = legoassembler.build.teach_platform(rob)
             f.write(yaml.dump(calib))
-            host.close()
+            #host.close()
     return calib
 
 
@@ -110,12 +112,12 @@ def _build(cfg, host, ur_client, mv):
     host.close()
 
 
-def _preview_taught_platform(cfg, host, ur_client, calib):
+def _preview_taught_platform(cfg, rob, calib):
 
-    _upload_scipt(cfg, 'preview_taught_platform', ur_client)
-    host.accept()
-    legoassembler.build.preview_taught_platform(host, calib, cfg['environment']['travel_height'])
-    host.close()
+    #_upload_scipt(cfg, 'preview_taught_platform', ur_client)
+    #host.accept()
+    legoassembler.build.preview_taught_platform(rob, calib, cfg['environment']['travel_height'])
+    #host.close()
 
 
 def _test_camera_calibration(cfg, host, ur_client, cam_client, calib_platf, calib_cam):
