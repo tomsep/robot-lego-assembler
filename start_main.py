@@ -4,8 +4,11 @@ import os
 
 from legoassembler.main import run
 
+
 def _load_config():
     """ Load configuration from config.yml
+
+    Makes file paths OS independent.
 
     Returns
     -------
@@ -15,32 +18,20 @@ def _load_config():
 
     with open('config.yml', 'r') as f:
         cfg = yaml.load(f)
-    _discover_scripts(cfg)
+
+    def _replace_separator(entry):
+        # Make path OS independent
+        return entry.replace('/', os.sep).replace('\\', os.sep)
+
+    cfg['grip_def_script'] = _replace_separator(cfg['grip_def_script'])
+
+    cfg['calibration_data']['camera'] = \
+        _replace_separator(cfg['calibration_data']['camera'])
+
+    cfg['calibration_data']['platform'] = \
+        _replace_separator(cfg['calibration_data']['platform'])
+
     return cfg
-
-
-def _discover_scripts(config, pckg_name='legoassembler'):
-    """ Construct and validate absolute paths to scripts
-
-    Parameters
-    ----------
-    config : dict
-        Configuration loaded from config.yml
-    pckg_name : str
-        Name of the package in that contains the source code.
-
-    """
-
-    root = os.path.dirname(os.path.abspath(__file__))
-    scripts = config['ur_scripts']
-    folder = pckg_name + os.sep + scripts['directory']
-
-    for key, script in scripts.items():
-        if key != 'directory':
-            new_path = os.path.join(root, folder, script)
-            if not os.path.isfile(new_path):
-                raise ValueError('File "{}" does not exist'.format(new_path))
-            scripts[key] = new_path
 
 
 if __name__ == '__main__':

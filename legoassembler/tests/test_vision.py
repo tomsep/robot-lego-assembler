@@ -3,6 +3,7 @@ from __future__ import division, print_function
 import cv2 as cv
 import yaml
 from mock import MagicMock
+from math import radians
 
 from legoassembler.vision import *
 from legoassembler.vision import _find_bricks_of_color
@@ -37,7 +38,7 @@ def test_find_bricks_of_color():
     center = (163, 123)  # x, y. Image origin at top left corner.
     width = 100  # pixels. Shorter is the width
     length = 200  # pixels
-    angle = math.radians(-15)  # from x-axis
+    angle = radians(-15)  # from x-axis
     correct = {'cx': center[0], 'cy': center[1], 'area': width * length,
                 'angle': angle}
 
@@ -53,7 +54,7 @@ def test_find_bricks_of_color():
 
     assert abs(res[0]['area'] - correct['area']) < 0.03 * correct['area']
 
-    eps_angle = math.radians(2)
+    eps_angle = radians(2)
     assert abs(res[0]['angle'] - angle) < eps_angle
 
 
@@ -112,7 +113,7 @@ class TestMachineVision:
         side_mm = 10
         actual_pixels_in_mm = rect_actual_width_pixels / side_mm
         rect_midp = (143, 294)
-        actual_angle = math.radians(30)
+        actual_angle = radians(30)
 
         img = cv.imread(fpath, cv.IMREAD_COLOR)
 
@@ -141,5 +142,5 @@ class TestMachineVision:
         assert abs(res['y'] - actual_dist_y) < eps
 
         # Both positive y quarters are ok
-        assert abs(res['angle']) - actual_angle < math.radians(3)
+        assert abs(res['angle']) - actual_angle < radians(3)
 

@@ -24,12 +24,22 @@ class Server:
         """
         self.close()
 
-    def accept(self):
+    def accept(self, print_info=True):
+        """ Accept connection
+
+        Parameters
+        ----------
+        print_info : bool
+            If info about connections accepted should be printed.
+
+        """
+
         if self.connection:
             self.connection.close()
         self.connection, self.client_addr = self.socket.accept()
-        print('Accepted connection with ' + self.client_addr[0] + ':'
-              + str(self.client_addr[1]))
+        if print_info:
+            print('Accepted connection with ' + self.client_addr[0] + ':'
+                  + str(self.client_addr[1]))
 
     def close(self):
         if self.connection is not None:
@@ -54,6 +64,7 @@ class Client:
 
     def connect(self, ip, port):
         self.socket = socket.socket()
+        self.socket.settimeout(3)
         self.socket.connect((ip, port))
 
     def close(self):

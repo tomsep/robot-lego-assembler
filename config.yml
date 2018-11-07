@@ -3,6 +3,7 @@
 environment:
   # Travel height for the robot arm.
   travel_height: 0.2  # Meters
+  simulated: False
 
 network:
   host:  # PC running the main program
@@ -18,10 +19,10 @@ network:
     port: 9002
 
 
-camera:
-  resolution:
-    x: 1200
-    y: 800
+#camera:
+#  resolution:
+#    x: 1200
+#    y: 800
 
 
 bricks:
@@ -41,16 +42,8 @@ bricks:
       - [100, 150, 10]
       - [120, 255, 105]
 
-ur_scripts:
-  directory: urscripts
-  build: build.script
-  preview: build_preview.script
-  calibrate_camera: calibrate_camera.script
-  teach_platform: teach_platform.script
-  preview_taught_platform: preview_taught_platform.script
-  gripper_urcap_preamble: gripper_urcap_preamble.script
-  gripper_function_definition: gripper_function_definition.script
-  test_camera_calibration: test_camera_calibration.script
+
+grip_def_script: urscripts/gripper_def_robotiq-2f-85.script
 
 calibration_data:
   camera: camera_calibr.yml

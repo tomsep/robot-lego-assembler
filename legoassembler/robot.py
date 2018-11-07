@@ -1,174 +1,150 @@
 from __future__ import division, print_function
-import time
-
-from math import radians
-from pymodbus.constants import Endian
+import json
 from pymodbus.client.sync import ModbusTcpClient
-from pymodbus.payload import BinaryPayloadDecoder, BinaryPayloadBuilder
 
-from legoassembler.communication import URClient
+from legoassembler.communication import URClient, URServer
 
 
 class Robot:
+    """ Robot operating class for UR5
 
-    def __init__(self, ip, grip_preamble, grip_funcdef, no_gripper=False):
+    Implements methods for operating Universal Robot 5
+    with optional Robotiq gripper.
+    Also makes possible to retrieve status and values from the UR5 controller.
 
-        self.mod_client = ModbusTcpClient(ip, 502)
-        self.script_client = URClient()
-        self.script_client.connect(ip, 30001)
-        self._state_reg = 128
-        self._no_gripper = no_gripper
+    Uses ModBus and Sockets for communication.
 
-        if self._no_gripper is False:
-            self._load_gripper_script(grip_preamble, grip_funcdef)
+    Each command is sent as a script:
+    def program():
+        socket_open(<ip>, <port>)
+        <code>
+        socket_send_line(<some value>)
+    end
+    which always returns a line to the listening socket. This return value
+    (sometimes empty) indicates when the script sent has finished and the next
+    script can be safely sent.
 
+    Most methods are named similarly as in the UR script manual. See the documentation
+    for details of these methods.
 
-    def move(self, mtype, pose, v, a, relative=False):
+    """
 
-        # TODO: add defaults for v,a (different for all move types)
+    def __init__(self, ip_ur, ip_host, grip_def=None, port_host=26532):
+
+        self.mod_client = ModbusTcpClient(ip_ur, 502)
+        self._script_client = URClient()
+        self._script_client.connect(ip_ur, 30001)
+        self._receiver = URServer(ip_host, port_host)
+        self._ip_host = ip_host
+        self._port_host = port_host
+
+        self._grip_def = grip_def
+        if type(self._grip_def) == list:
+            self._grip_def = '\n'.join(self._grip_def) + '\n'
+
+    def movel(self, pose, a=1.2, v=0.25, relative=False):
         if relative:
-            prog = 'pose = get_actual_tcp_pose()' \
-                   'pose = pose_add(pose, p{})' \
-                   'move{}(pose,a={},v={})' \
-                   ''.format(pose, mtype, a, v)
+            prog = ['pose = get_actual_tcp_pose()',
+                   'pose = pose_add(pose, p{})'.format(pose),
+                   'movel(pose,a={},v={})'.format(a, v)]
         else:
-            prog = 'move{}(p{},a={},v={})'.format(mtype, pose, a, v)
+            prog = ['movel(p{},a={},v={})'.format(pose, a, v)]
 
+        prog += ['socket_send_line("")']
         self._run(prog)
 
-    def move_joints(self, mtype, pose, v, a, relative=False):
-
+    def movej(self, pose, a=1.4, v=1.05, relative=False):
         if relative:
-            prog = 'p1 = get_actual_tcp_pose()' \
-                   'p2 = p{}' \
-                   'pose = pose_add(p1, p2)' \
-                   'move{}(pose,a={},v={})' \
-                   ''.format(pose, mtype, a, v)
+            prog = ['pose = get_actual_tcp_pose()',
+                   'pose = pose_add(pose, p{})'.format(pose),
+                   'movej(pose,a={},v={})'.format(a, v)]
         else:
-            prog = 'move{}({},a={},v={})'.format(mtype, pose, a, v)
+            prog = ['movej(p{},a={},v={})'.format(pose, a, v)]
 
+        prog += ['socket_send_line("")']
         self._run(prog)
 
-    def teachmode(self, on, popup=''):
-        if on:
-            prog = 'teach_mode()\n'
-            if popup != '':
-                prog += 'popup("{}", blocking=True)\n'.format(popup)
-
-        else:
-            prog = 'end_teach_mode()\n'
-
+    def teachmode(self, msg):
+        prog = ['teach_mode()',
+                'popup("{}", blocking=True)'.format(msg),
+                'socket_send_line("")']
         self._run(prog)
 
     def get_tcp(self):
-        # TODO: use decimal to get rid of floating point errors?
-        regs = self.mod_client.read_holding_registers(400, 6).registers
-        xyz = [x / 10000 for x in regs[:3]]
-
-        for i in range(len(xyz)):
-            if xyz[i] > 3.2768:
-                xyz[i] = -(6.5535 - xyz[i])
-
-        rxyz = [x / 1000 for x in regs[3:]]
-        for i in range(len(rxyz)):
-            if rxyz[i] > 32.768:
-                rxyz[i] = -(65.535 - rxyz[i])
-            elif rxyz[i] > radians(360):
-                rxyz[i] -= radians(360)
-        pose = xyz + rxyz
-        return pose # meters, and rads
+        prog = \
+            ['ps = get_actual_tcp_pose()',
+             'socket_send_line(ps)']
+        return json.loads(self._run(prog)[1:])
 
     def get_joint_positions(self):
-
-        # TODO: use decimal to get rid of floating point errors?
-
-        joints = self.mod_client.read_holding_registers(270, 6).registers
-        joints = [x / 1000 for x in joints]
-
-        # Write signs prog
-        prog = """
-def fun(addr, val):
-    if val >= 0:
-        write_port_register(addr, 1)
-    else:
-        write_port_register(addr, 0)
-    end
-end
-ps = get_actual_joint_positions()
-fun(130, ps[0])
-fun(131, ps[1])
-fun(132, ps[2])
-fun(133, ps[3])
-fun(134, ps[4])
-fun(135, ps[5])
-
-"""
-        self._run(prog)
-        signs = self.mod_client.read_holding_registers(130, 6).registers
-
-        joints_ = []
-        for val, sign in zip(joints, signs):
-            if int(sign) == 1:
-                joints_.append(val)
-            else:
-                joints_.append(-(radians(360) - val))
-
-        return joints_  # rads
+        prog = \
+            ['ps = get_actual_joint_positions()',
+             'socket_send_line(ps)']
+        return json.loads(self._run(prog))
 
     def popup(self, msg, blocking=False):
-        prog = 'popup("{}", blocking={})\n'.format(msg, blocking)
+        prog = \
+            ['popup("{}", blocking={})\n'.format(msg, blocking),
+             'socket_send_line("")']
         self._run(prog)
-
-    def _run(self, prog):
-        self.mod_client.write_register(128, False)
-
-        #prog = prog.replace('\t', '    ')  # tabs to 4 spaces
-        prog += '\nwrite_port_register({}, 1)\n'.format(self._state_reg)
-        # Add 4 spaces to each line
-        prog = (4 * ' ').join(('\n' + prog.lstrip()).splitlines(True))
-
-        script = 'def program():\n{}\nend\n'\
-            .format(prog)
-
-
-        self.script_client.send(script)
-        while not self.mod_client.read_holding_registers(128, 1).registers[0]:
-            if self.operable() is not True:
-                raise RuntimeError('Robot not operable')
-            time.sleep(0.02)
 
     def operable(self):
         status = self.mod_client.read_coils(260, 1)
         # TODO: add emergency states and such
         return status.bits[0]
 
+    def rpy2rotvec(self, rpy_vec):
+        prog = \
+            ['rpy = rpy2rotvec({})'.format(rpy_vec),
+             'socket_send_line(rpy)']
+        return json.loads(self._run(prog))
+
+    def rotvec2rpy(self, rot_vec):
+        prog = \
+            ['rotvec = rotvec2rpy({})'.format(rot_vec),
+             'socket_send_line(rotvec)']
+        return json.loads(self._run(prog))
+
     def grip(self, closed, speed=10, force=10):
+        if self._grip_def:
+            prog = self._grip_def
 
-        if self._no_gripper:
-            return
+            prog = prog.replace('$$CLOSED$$', str(closed))
+            prog = prog.replace('$$SPEED$$', str(speed))
+            prog = prog.replace('$$FORCE$$', str(force))
+            prog += '\nsocket_send_line("")'
+            self._run([prog])
+        else:
+            raise ValueError('No gripper definition script defined.')
 
-        s = self._gripper_script.replace('$$CLOSED$$', str(closed))
-        s = s.replace('$$SPEED$$', str(speed))
-        s = s.replace('$$FORCE$$', str(force))
-        self._run(s)
+    def pose_trans(self, p_from, p_from_to):
+        """ Transform pose using another pose
 
-    def _load_gripper_script(self, preamble, funcdef):
+        Returns
+        -------
+        list[float, ..] length 6
 
-        with open(preamble, 'r') as f:
-            script = f.read()
+        """
+        prog = \
+            ['ps = pose_trans(p{},p{})'.format(p_from, p_from_to),
+             'socket_send_line(ps)']
+        return json.loads(self._run(prog)[1:])
 
-        with open(funcdef, 'r') as f:
-            fdef = f.read()
+    def _run(self, sub_prog):
 
-        script += '\n' + fdef + '\n'
-        self._gripper_script = script
+        sub_prog = ['\t' + x for x in sub_prog]  # add tabs to sub program
+        script = \
+            ['def prg():',
+             '\tsocket_open("{}",{})'.format(self._ip_host, self._port_host)] +\
+            sub_prog + ['end']
 
-if __name__ == '__main__':
+        script = '\n'.join(script) + '\n'
 
-    ip = '192.168.71.128'
-    ip = '192.168.1.198'
-    rob = Robot(ip, 's', 's', no_gripper=True)
+        if self.operable() is not True:
+            raise RuntimeError('Robot not operable')
 
-    pose = [0, 0, 0, 0, 0, radians(15)]
-    rob.move_joints('j', pose, v=0.2, a=0.1, relative=True)
-    print('done')
+        self._script_client.send(script)
+        self._receiver.accept(print_info=False)
+        data = self._receiver.recv()
+        self._receiver.close()
+        return data
