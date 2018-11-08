@@ -43,7 +43,7 @@ bricks:
       - [120, 255, 105]
 
 
-grip_def_script: urscripts/gripper_def_robotiq-2f-85.script
+grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
 
 calibration_data:
   camera: camera_calibr.yml
