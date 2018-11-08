@@ -5,7 +5,7 @@ import numpy as np
 from math import radians, sin, cos
 from copy import deepcopy
 
-from vision import MachineVision
+from vision import MachineVision, NoMatches
 
 
 def teach_platform(rob):
@@ -101,8 +101,8 @@ def preview_taught_platform(rob, calib, travel_height):
 def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
 
     wait = 0.1
-    vel = 0.5
-    a = 0.1
+    vel = 1.3
+    a = 0.4
     test_pose = calib['taught_poses']['build'][0]
 
     rob.popup('Press continue to start camera calibration', blocking=True)
@@ -124,31 +124,61 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
     time.sleep(wait * 2)
     rob.movel(pose, v=vel, a=a)
 
+    def _imaging(on_, xoff_, yoff_):
+        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
+        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
+        if on_ is False:
+            xoff_ = -xoff_
+            yoff_ = -yoff_
+        p2 = [xoff_, yoff_, 0] + rob.rotvec2rpy([0, 0, 0])
+        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
+        rob.movej(pose_, v=vel, a=a, relative=True)
+        time.sleep(wait)
+        return pose_
+
+    offset_pose = _imaging(True, 0, 0.065)
     # Take calibration image
     mv.calibrate(brick2x2_side_mm, color)
 
     # Move aside: x, y and yaw
-    rotvec = rob.rpy2rotvec([0, 0, radians(-45)])
-    pose = [-0.03, 0.02, 0] + rotvec
+    rotvec = rob.rpy2rotvec([0, 0, radians(0)])
+    pose = [0.07,0.05, 0] + rotvec
     rob.movej(pose, v=vel, a=a, relative=True)
     time.sleep(wait)
 
-    # Take new image
+
+    def _imaging2(xoff_, yoff_, angle_):
+        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
+        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
+        p2 = [xoff_, yoff_, 0] + rob.rotvec2rpy([0, 0, 0])
+        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, angle_]
+        rob.movej(pose_, v=vel, a=a, relative=True)
+        time.sleep(wait)
+
     match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+    print(match)
+    _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
 
-    # Transform x and y from image's frame to robot's frame
-    rpy = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
-    p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy[2]])
-    p2 = [match['x']/1000, match['y']/1000, 0] + rob.rotvec2rpy([0, 0, 0])
-    trans_xyz = rob.pose_trans(p1, p2)[:3]
+    match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+    print(match)
+    _imaging2(0, 0, match['angle'])
 
-    # Add yaw to correct angle
-    pose = trans_xyz + rob.rpy2rotvec([0, 0, -match['angle']])
+    match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+    print(match)
+    _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
 
-    # Move above the match
-    rob.movej(pose, v=vel, a=a, relative=True)
+    match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+    print(match)
+    _imaging2(0, 0, match['angle'])
+
+    while abs(match['x']) > 0.1 or abs(match['y']) > 0.1:
+        match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+        print(match)
+        _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
+        time.sleep(wait)
+
+    _imaging(False, 0, 0.065)
     time.sleep(wait)
-
     # Touch the match
     pose = rob.get_tcp()
     pose[2] = test_pose[2]
@@ -160,3 +190,96 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
 
     rob.popup('Camera calibration finished!')
     print('Camera calibration finished!')
+
+
+def test_camera(rob, mv, travel_height, calib, color):
+
+    wait = 0.0
+    vel = 1
+    a = 0.3
+    imaging_area = calib['taught_poses']['part']
+    place_area = calib['taught_poses']['build'][0]
+
+    rob.popup('Press continue to start test', blocking=True)
+
+    # Goto starting height above
+    pose = rob.get_tcp()
+    pose[2] = imaging_area[2] + travel_height
+    rob.movel(pose, v=vel, a=a)
+    time.sleep(wait)
+
+    # above imaging area
+    pose = deepcopy(imaging_area)
+    pose[2] += travel_height
+    rob.movej(pose, v=vel, a=a)
+
+
+
+    def _imaging(on_, xoff_, yoff_):
+        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
+        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
+        if on_ is False:
+            xoff_ = -xoff_
+            yoff_ = -yoff_
+        p2 = [xoff_, yoff_, 0] + rob.rotvec2rpy([0, 0, 0])
+        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
+        rob.movej(pose_, v=vel, a=a, relative=True)
+        time.sleep(wait)
+        return pose_
+
+    def _imaging2(xoff_, yoff_, angle_):
+        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
+        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
+        p2 = [xoff_, yoff_, 0] + rob.rotvec2rpy([0, 0, 0])
+        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, angle_]
+        rob.movej(pose_, v=vel, a=a, relative=True)
+        time.sleep(wait)
+    # Open gripper
+    rob.grip(closed=76)
+    while True:
+
+        try:
+            match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+            print(match)
+            _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
+
+            match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+            print(match)
+            _imaging2(0, 0, match['angle'])
+
+            match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+            print(match)
+            _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
+
+            match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+            print(match)
+            _imaging2(0, 0, match['angle'])
+
+            while abs(match['x']) > 0.1 or abs(match['y']) > 0.1:
+                match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
+                print(match)
+                _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
+                time.sleep(wait)
+        except (NoMatches, ValueError):
+            continue
+        _imaging(False, 0, 0.065)
+        time.sleep(wait)
+
+        # Grab the match
+        pose = rob.get_tcp()
+        pose[2] = imaging_area[2] + 0.02
+        rob.movel(pose, v=vel, a=a)
+        time.sleep(wait * 2)
+        rob.grip(closed=83, force=20)
+        pose[2] = travel_height
+        rob.movel(pose, v=vel, a=a)
+        time.sleep(wait)
+
+        # Place
+        pose = deepcopy(place_area)
+        pose[2] += travel_height
+        rob.movej(pose, v=vel, a=a)
+        rob.movel(place_area)
+        rob.grip(closed=76)
+        rob.movel(pose)
+
