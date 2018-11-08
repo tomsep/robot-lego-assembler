@@ -3,6 +3,7 @@ from __future__ import print_function
 import yaml
 import socket
 from warnings import warn
+import os
 
 from legoassembler.communication import Client
 import legoassembler.build
@@ -42,6 +43,9 @@ def run(cfg):
         load = True
     _calibrate_camera(cfg, rob, mv, platform_calib, load)
 
+    if input('Test camera? [Y/n]: ') == 'Y':
+        _test_camera(cfg, rob, mv, platform_calib)
+
     if input('Start building? [Y/n]: ') == 'Y':
         raise NotImplementedError('Building not impl.')
 
@@ -68,10 +72,8 @@ def _calibrate_camera(cfg, rob, mv, platf_calib, load):
             #_upload_scipt(cfg, 'calibrate_camera', ur_client)
             #host.accept()
             travel_height = cfg['environment']['travel_height']
-            calib = legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib, 32, 'red')
-            f.write(yaml.dump(calib))
-    return calib
-
+            legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib, 32, 'red')
+            mv.save_calibration(cfg['calibration_data']['camera'])
 
 def _preview_taught_platform(cfg, rob, calib):
     legoassembler.build.preview_taught_platform(rob, calib, cfg['environment']['travel_height'])
@@ -110,6 +112,11 @@ def _connect_to_camera_client(cfg):
 def _mv_setup(cfg, cam_client):
 
     mv = MachineVision(cam_client, cfg['bricks']['colors'], {'iso': 800, 'resolution': [800, 600]})
-
+    fpath = cfg['calibration_data']['camera']
+    if os.path.isfile(fpath):
+        mv.load_calibration(cfg['calibration_data']['camera'])
     return mv
 
+def _test_camera(cfg, rob, mv, platf_calib):
+    legoassembler.build.test_camera(rob, mv, cfg['environment']['travel_height'],
+                                    platf_calib, 'red')
