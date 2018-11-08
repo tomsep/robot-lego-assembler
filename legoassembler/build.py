@@ -171,7 +171,7 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
     print(match)
     _imaging2(0, 0, match['angle'])
 
-    while abs(match['x']) > 0.1 and abs(match['y']) > 0.1:
+    while abs(match['x']) > 0.1 or abs(match['y']) > 0.1:
         match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
         print(match)
         _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
