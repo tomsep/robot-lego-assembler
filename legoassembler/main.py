@@ -109,7 +109,7 @@ def _connect_to_camera_client(cfg):
 
 def _mv_setup(cfg, cam_client):
 
-    mv = MachineVision(cam_client, cfg['bricks']['colors'], {'iso': 800})
+    mv = MachineVision(cam_client, cfg['bricks']['colors'], {'iso': 800, 'resolution': [800, 600]})
 
     return mv
 

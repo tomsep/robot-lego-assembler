@@ -64,7 +64,7 @@ class Client:
 
     def connect(self, ip, port):
         self.socket = socket.socket()
-        self.socket.settimeout(3)
+        self.socket.settimeout(9)
         self.socket.connect((ip, port))
 
     def close(self):

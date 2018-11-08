@@ -37,7 +37,7 @@ class MachineVision:
 
         """
 
-        margin = 0.05
+        margin = 0.1
         size = (1, 1)
         img = remote_capture(self.client, self.cam_params)
         bricks = _find_bricks_of_color(img, self.colors[color], draw)
