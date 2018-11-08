@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import json
 from pymodbus.client.sync import ModbusTcpClient
+from copy import deepcopy
 
 from legoassembler.communication import URClient, URServer
 
@@ -38,9 +39,8 @@ class Robot:
         self._ip_host = ip_host
         self._port_host = port_host
 
-        self._grip_def = grip_def
-        if type(self._grip_def) == list:
-            self._grip_def = '\n'.join(self._grip_def) + '\n'
+        with open(grip_def, 'r') as f:
+            self._grip_def = f.readlines()
 
     def movel(self, pose, a=1.2, v=0.25, relative=False):
         if relative:
@@ -88,11 +88,6 @@ class Robot:
              'socket_send_line("")']
         self._run(prog)
 
-    def operable(self):
-        status = self.mod_client.read_coils(260, 1)
-        # TODO: add emergency states and such
-        return status.bits[0]
-
     def rpy2rotvec(self, rpy_vec):
         prog = \
             ['rpy = rpy2rotvec({})'.format(rpy_vec),
@@ -107,13 +102,13 @@ class Robot:
 
     def grip(self, closed, speed=10, force=10):
         if self._grip_def:
-            prog = self._grip_def
+            prog = deepcopy(self._grip_def)
+            for i in range(len(self._grip_def)):
+                prog[i] = prog[i].replace('$$CLOSED$$', str(closed))
+                prog[i] = prog[i].replace('$$SPEED$$', str(speed))
+                prog[i] = prog[i].replace('$$FORCE$$', str(force))
 
-            prog = prog.replace('$$CLOSED$$', str(closed))
-            prog = prog.replace('$$SPEED$$', str(speed))
-            prog = prog.replace('$$FORCE$$', str(force))
-            prog += '\nsocket_send_line("")'
-            self._run([prog])
+            self._run(prog + ['socket_send_line("")'])
         else:
             raise ValueError('No gripper definition script defined.')
 
@@ -139,9 +134,6 @@ class Robot:
             sub_prog + ['end']
 
         script = '\n'.join(script) + '\n'
-
-        if self.operable() is not True:
-            raise RuntimeError('Robot not operable')
 
         self._script_client.send(script)
         self._receiver.accept(print_info=False)
