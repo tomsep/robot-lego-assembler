@@ -127,6 +127,12 @@ class Robot:
              'socket_send_line(ps)']
         return json.loads(self._run(prog)[1:])
 
+    def set_tcp(self, pose):
+        prog = \
+            ['set_tcp(p{})'.format(pose),
+             'socket_send_line("")']
+        self._run(prog)
+
     def _run(self, sub_prog):
 
         sub_prog = ['\t' + x for x in sub_prog]  # add tabs to sub program
