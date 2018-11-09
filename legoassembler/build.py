@@ -227,6 +227,8 @@ def test_camera(rob, mv, travel_height, calib, color):
         rob.movej(pose, v=vel, a=a)
 
         rob.set_tcp(TCP_CAM)
+        # Open gripper
+        rob.grip(closed=GOPEN)
 
         match = {'x': 255, 'y': 255, 'angle': 255}
         while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
