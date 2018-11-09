@@ -7,6 +7,10 @@ from copy import deepcopy
 
 from vision import MachineVision, NoMatches
 
+GOPEN = 61.5
+GCLOSED = 70
+FORCE = 55
+CAM_OFFSET = (0, 0.065)
 
 def teach_platform(rob):
 
@@ -25,7 +29,7 @@ def teach_platform(rob):
     rob.popup('Hit continue to start guided calibration procedure.', blocking=True)
     rob.popup('Continue to initialize gripper.', blocking=True)
 
-    rob.grip(closed=76)
+    rob.grip(closed=GOPEN)
 
     msg = 'Place 2x2 block on one corner of the build platform.' \
               ' Guide the arm to grab the block.'
@@ -65,7 +69,7 @@ def preview_taught_platform(rob, calib, travel_height):
     rob.movel(pose, v=vel, a=a)
 
     # Open gripper
-    rob.grip(closed=76)
+    rob.grip(closed=GOPEN)
 
     pose = deepcopy(poses['build'][0])
     pose[2] += travel_height
@@ -114,7 +118,7 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
     time.sleep(wait)
 
     # Open gripper
-    rob.grip(closed=76)
+    rob.grip(closed=GOPEN)
 
     pose = deepcopy(test_pose)
     pose[2] += travel_height
@@ -136,7 +140,7 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
         time.sleep(wait)
         return pose_
 
-    offset_pose = _imaging(True, 0, 0.065)
+    offset_pose = _imaging(True, CAM_OFFSET[0], CAM_OFFSET[1])
     # Take calibration image
     mv.calibrate(brick2x2_side_mm, color)
 
@@ -171,7 +175,7 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
     print(match)
     _imaging2(0, 0, match['angle'])
 
-    while abs(match['x']) > 0.1 or abs(match['y']) > 0.1:
+    while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
         match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
         print(match)
         _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
@@ -235,7 +239,7 @@ def test_camera(rob, mv, travel_height, calib, color):
         rob.movej(pose_, v=vel, a=a, relative=True)
         time.sleep(wait)
     # Open gripper
-    rob.grip(closed=76)
+    rob.grip(closed=GOPEN)
     while True:
 
         try:
@@ -255,22 +259,22 @@ def test_camera(rob, mv, travel_height, calib, color):
             print(match)
             _imaging2(0, 0, match['angle'])
 
-            while abs(match['x']) > 0.1 or abs(match['y']) > 0.1:
+            while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
                 match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
                 print(match)
                 _imaging2(match['x'] / 1000, match['y'] / 1000, 0)
                 time.sleep(wait)
         except (NoMatches, ValueError):
             continue
-        _imaging(False, 0, 0.065)
+        _imaging(False, CAM_OFFSET[0], CAM_OFFSET[1])
         time.sleep(wait)
 
         # Grab the match
         pose = rob.get_tcp()
-        pose[2] = imaging_area[2] + 0.02
+        pose[2] = imaging_area[2] + 0.021
         rob.movel(pose, v=vel, a=a)
         time.sleep(wait * 2)
-        rob.grip(closed=83, force=20)
+        rob.grip(closed=GCLOSED, force=FORCE)
         pose[2] = travel_height
         rob.movel(pose, v=vel, a=a)
         time.sleep(wait)
@@ -280,6 +284,6 @@ def test_camera(rob, mv, travel_height, calib, color):
         pose[2] += travel_height
         rob.movej(pose, v=vel, a=a)
         rob.movel(place_area)
-        rob.grip(closed=76)
+        rob.grip(closed=GOPEN)
         rob.movel(pose)
 
