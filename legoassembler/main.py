@@ -21,7 +21,7 @@ def run(cfg):
 
     if cfg['environment']['simulated']:
         print('Running in simulation mode')
-        grip_def = ' '
+        grip_def = None
     else:
         grip_def = cfg['grip_def_script']
 

@@ -39,9 +39,11 @@ class Robot:
         self._ip_host = ip_host
         self._port_host = port_host
 
-        with open(grip_def, 'r') as f:
-            self._grip_def = f.readlines()
-
+        if grip_def:
+            with open(grip_def, 'r') as f:
+                self._grip_def = f.readlines()
+        else:
+            self._grip_def = ['']
     def movel(self, pose, a=1.2, v=0.25, relative=False):
         if relative:
             prog = ['pose = get_actual_tcp_pose()',
