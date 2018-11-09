@@ -39,7 +39,7 @@ def start(ip, port):
         serv.close()
 
 
-def capture(camera, cam_params, iformat='png'):
+def capture(camera, cam_params, iformat='jpeg'):
     """ Capture image
 
     Parameters
@@ -58,7 +58,7 @@ def capture(camera, cam_params, iformat='png'):
     apply_cam_params(camera, cam_params)
 
     stream = io.BytesIO()
-    camera.capture(stream, iformat)
+    camera.capture(stream, iformat, use_video_port=True)
     stream.seek(0)
     return stream.read()
 
