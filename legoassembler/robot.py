@@ -133,6 +133,20 @@ class Robot:
              'socket_send_line("")']
         self._run(prog)
 
+    def force_mode_tool_z(self, force, time):
+        prog = \
+            ['task_frame = tool_pose()',
+             'sel_vector = [0,0,1,0,0,0]',
+             'type = 2',
+             'wrench = [0,0,{},0,0,0]'.format(force),
+             'limits = [0.1, 0.1, 0.15, 0.3490658503988659, 0.3490658503988659, 0.3490658503988659]',
+             'force_mode(task_frame, sel_vector, wrench, type, limits)'
+             'sleep({})'.format(time),
+             'end_force_mode()',
+             'stopl(5.0)',
+             'socket_send_line("")']
+        self._run(prog)
+
     def _run(self, sub_prog):
 
         sub_prog = ['\t' + x for x in sub_prog]  # add tabs to sub program

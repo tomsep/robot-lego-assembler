@@ -266,7 +266,36 @@ def test_camera(rob, mv, travel_height, calib, color):
         pose = deepcopy(place_area)
         pose[2] += travel_height
         rob.movej(pose, v=vel, a=a)
-        rob.movel(place_area)
+        pose_ = deepcopy(place_area)
+        pose_[2] += 0.023
+        rob.movel(pose_)
+
+        place_block(rob, target_z=place_area[2], target_pose=place_area)
+
         rob.grip(closed=GOPEN)
         rob.movel(pose)
 
+
+
+
+def place_block(rob, target_z, target_pose, max_mm=1.5):
+
+    force = 37  # Newtons
+    rob.force_mode_tool_z(force, 2)
+    while abs(rob.get_tcp()[2] - target_z) > max_mm / 1000:
+        wiggle(rob, 1, target_pose)
+        rob.force_mode_tool_z(force, 1)
+
+
+def wiggle(robot, max_mm, target_pose):
+    x, y = np.random.rand(2) * max_mm
+    xs, ys = np.random.rand(2)  # random sign
+    tcp = deepcopy(target_pose)
+    if xs > 0.5:
+        x *= -1
+    if ys > 0.5:
+        y *= -1
+    tcp[0] += x / 1000
+    tcp[1] += y / 1000
+    tcp[2] = robot.get_tcp()[2]
+    robot.movej(tcp, v=0.1, a=0.05)
