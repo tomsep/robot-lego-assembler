@@ -5,7 +5,7 @@ import numpy as np
 from math import radians, sin, cos
 from copy import deepcopy
 
-from vision import MachineVision, NoMatches
+from legoassembler.vision import MachineVision, NoMatches
 
 GOPEN = 61.5
 GCLOSED = 70
