@@ -109,7 +109,10 @@ class MachineVision:
         img = remote_capture(self.client, self.cam_params)
         bricks = _find_bricks_of_color(img, self.colors[color], draw)
 
-        brick = _best_rect_ratio_match(bricks, size)
+        try:
+            brick = _best_rect_ratio_match(bricks, size)
+        except ValueError:
+            raise NoMatches
 
         target_ratio = size[0] / size[1]
         brick_ratio = brick['dimensions'][0] / brick['dimensions'][1]
