@@ -7,7 +7,7 @@ from copy import deepcopy
 
 from legoassembler.vision import MachineVision, NoMatches
 
-GOPEN = 61.5
+GOPEN = 60
 GCLOSED = 70
 FORCE = 55
 TCP = [0, 0, 0.193, 0, 0, 0]
@@ -276,8 +276,6 @@ def test_camera(rob, mv, travel_height, calib, color):
         rob.movel(pose)
 
 
-
-
 def place_block(rob, target_z, target_pose, max_mm=1.5):
 
     force = 37  # Newtons
@@ -299,3 +297,123 @@ def wiggle(robot, max_mm, target_pose):
     tcp[1] += y / 1000
     tcp[2] = robot.get_tcp()[2]
     robot.movej(tcp, v=0.1, a=0.05)
+
+
+def build(rob, mv, platf_calib, plan, travel_height):
+    wait = 0.0
+    vel = 1.5
+    a = 0.6
+
+    rob.popup('Continue to start building', blocking=True)
+    rob.set_tcp(TCP)
+
+    imaging_area = platf_calib['taught_poses']['part']
+
+    # Goto starting height above
+    pose = rob.get_tcp()
+    pose[2] = imaging_area[2] + travel_height
+    rob.movel(pose, v=vel, a=a)
+
+    def _imaging(on_, xoff_, yoff_):
+        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
+        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
+        if on_ is False:
+            xoff_ = -xoff_
+            yoff_ = -yoff_
+        p2 = [xoff_, yoff_, 0] + rob.rotvec2rpy([0, 0, 0])
+        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
+        rob.movej(pose_, v=vel, a=a, relative=True)
+        time.sleep(wait)
+        return pose_
+
+    for target in plan:
+
+        # Go above imaging area
+        rob.set_tcp(TCP)
+        pose = deepcopy(imaging_area)
+        pose[2] += travel_height
+        rob.movej(pose, v=vel, a=a)
+
+        rob.set_tcp(TCP_CAM)
+        # Open gripper
+        rob.grip(closed=GOPEN)
+
+        match = {'x': 255, 'y': 255, 'angle': 255}
+        while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
+            try:
+                match = mv.find_brick(target[4], (2, 2), margin=0.2, draw=True)
+            except NoMatches:
+                continue
+
+            print(match)
+            xoff = match['x'] / 1000
+            yoff = match['y'] / 1000
+            angle_off = match['angle']
+            rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
+            p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
+            p2 = [xoff, yoff, 0] + rob.rotvec2rpy([0, 0, 0])
+            pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, angle_off]
+            rob.movej(pose_, v=vel, a=a, relative=True)
+            time.sleep(wait)
+
+        rob.set_tcp(TCP)
+        _imaging(False, -TCP_CAM[0], -TCP_CAM[1])
+        time.sleep(wait)
+
+        # Grab the match
+        pose = rob.get_tcp()
+        pose[2] = imaging_area[2] + 0.02
+        rob.movel(pose, v=vel, a=a)
+        rob.force_mode_tool_z(25, 0.5)
+        rob.grip(closed=GCLOSED, force=FORCE)
+        pose[2] = travel_height
+        rob.movel(pose, v=vel, a=a)
+        time.sleep(wait)
+
+        # Place
+        _place_on_platform(rob, platf_calib['taught_poses']['build'],
+                           target, travel_height, vel, a)
+
+        rob.grip(closed=GOPEN)
+        pose = rob.get_tcp()
+        pose[2] = travel_height
+        rob.movel(pose, v=vel, a=a)
+
+
+def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
+    # Use build_platf[0] as origin of the platform. X and Y towards corner [1]
+    x_sign, y_sign = (1, 1)
+    if build_platf[0][0] - build_platf[1][0] > 0:
+        x_sign *= -1
+    if build_platf[0][1] - build_platf[1][1] > 0:
+        y_sign *= -1
+
+    origin_pose = deepcopy(build_platf[0])
+    rpy = rob.rotvec2rpy(origin_pose[3:])
+    avg_yaw = (rob.rotvec2rpy(origin_pose[3:])[-1] +
+               rob.rotvec2rpy(build_platf[1][3:])[-1]) / 2
+    rpy[2] = avg_yaw
+    rotvec = rob.rpy2rotvec(rpy)
+    origin_pose[3:] = rotvec
+
+
+    # Platform coords to global
+    rpy_ = rob.rotvec2rpy(origin_pose[3:])  # rpy = [roll, pitch, yaw]
+    p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
+    p2 = [target[1] / 1000, target[2] / 1000, 0] + rob.rotvec2rpy([0, 0, 0])
+    target_rel_pose = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
+    target_pose = deepcopy(origin_pose)
+    target_pose[0] += target_rel_pose[0]
+    target_pose[1] += target_rel_pose[1]
+    target_pose[2] += target[0] / 1000
+
+    # target_pose = deepcopy(origin_pose)
+    # target_pose[0] += target[1] * x_sign / 1000
+    # target_pose[1] += target[2] * y_sign / 1000
+    # target_pose[2] += target[0] / 1000
+
+    pose = deepcopy(target_pose)
+    pose[2] = travel_height
+    rob.movej(pose, v=vel, a=a)
+
+    place_block(rob, target_z=target_pose[2], target_pose=target_pose)
