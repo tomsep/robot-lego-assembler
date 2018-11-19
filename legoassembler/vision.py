@@ -42,7 +42,7 @@ class MachineVision:
         img = remote_capture(self.client, self.cam_params)
         bricks = _find_bricks_of_color(img, self.colors[color], draw)
 
-        brick = _best_rect_ratio_match(bricks, size)
+        brick = _best_rect_ratio_match(bricks, size, margin)[0]
 
         target_ratio = size[0] / size[1]
         brick_ratio = brick['dimensions'][0] / brick['dimensions'][1]
@@ -110,9 +110,14 @@ class MachineVision:
         bricks = _find_bricks_of_color(img, self.colors[color], draw)
 
         try:
-            brick = _best_rect_ratio_match(bricks, size)
+            bricks = _best_rect_ratio_match(bricks, size, margin)
         except ValueError:
             raise NoMatches
+
+        bricks = sorted(bricks, key=lambda x: math.sqrt(x['cx']**2 + x['cy']**2))
+        if len(bricks) == 0:
+            raise NoMatches
+        brick = bricks[0]
 
         target_ratio = size[0] / size[1]
         brick_ratio = brick['dimensions'][0] / brick['dimensions'][1]
@@ -121,6 +126,10 @@ class MachineVision:
             raise NoMatches
 
         angle = brick['angle']# + math.radians(90)  # Angle w.r.t y
+
+        if angle < math.radians(-45):
+            angle = math.radians(90) + angle
+            print('here')
 
         # Angle should always be between (-90, +90]
         if angle > math.degrees(90):
@@ -450,7 +459,7 @@ def _rectangle_dimensions(points):
     return (min(ls), max(ls))
 
 
-def _best_rect_ratio_match(bricks, size):
+def _best_rect_ratio_match(bricks, size, margin):
 
     def _ratio(_size):
         if _size[1] == 0:
@@ -460,4 +469,5 @@ def _best_rect_ratio_match(bricks, size):
 
     target_ratio = _ratio(size)
 
-    return min(bricks, key=lambda x: abs(_ratio(x['dimensions']) - target_ratio))
+    bricks = filter(lambda x: abs(_ratio(x['dimensions']) - target_ratio) < target_ratio * margin, bricks)
+    return sorted(bricks, key=lambda x: abs(_ratio(x['dimensions']) - target_ratio))

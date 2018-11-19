@@ -9,7 +9,7 @@ from legoassembler.communication import Client
 import legoassembler.build
 from legoassembler.robot import Robot
 from legoassembler.vision import MachineVision
-
+from legoassembler.lego import load_file, coordinates, number_of_bricks, printer
 
 def run(cfg):
     """ Run main app
@@ -47,8 +47,7 @@ def run(cfg):
         _test_camera(cfg, rob, mv, platform_calib)
 
     if input('Start building? [Y/n]: ') == 'Y':
-        raise NotImplementedError('Building not impl.')
-
+        _build(cfg, rob, mv, platform_calib)
 
 def _teach_platform(cfg, rob, load):
 
@@ -120,3 +119,26 @@ def _mv_setup(cfg, cam_client):
 def _test_camera(cfg, rob, mv, platf_calib):
     legoassembler.build.test_camera(rob, mv, cfg['environment']['travel_height'],
                                     platf_calib, 'red')
+
+
+def _load_build_plan(fname):
+    lego_file = load_file(fname)
+    plans = coordinates(lego_file)
+    legos = number_of_bricks(plans)
+
+    # make into millimeters
+    mmfact = 32
+    mmfact_h = 19.2
+    for plan in plans:
+        plan[:3] = [(plan[0] - 1) * mmfact_h, plan[1] * mmfact, plan[2] * mmfact]
+
+    printer(legos, plans)
+
+    return plans
+
+def _build(cfg, rob, mv, platf_calib):
+
+    fname = cfg['lego_model_path']
+    plan = _load_build_plan(fname)
+    travel_h = cfg['environment']['travel_height']
+    legoassembler.build.build(rob, mv, platf_calib, plan, travel_h)
