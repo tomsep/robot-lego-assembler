@@ -33,7 +33,9 @@ def test_find_bricks_of_color():
 
     fpath = './img/rect_x163_y123_-15-degree-from_xaxis_' \
             'color_hue27%_width200_length100.jpg'
-    colors = {'testcol': ([46, 250, 250], [53, 255, 255])}  # Hue 27%
+
+    colors = {'testcol': {'1': [[46, 250, 250], [47, 255, 255]],
+                          '2': [[48, 250, 250], [53, 255, 255]]}}  # Hue 27%
     img = cv.imread(fpath, cv.IMREAD_COLOR)
     center = (163, 123)  # x, y. Image origin at top left corner.
     width = 100  # pixels. Shorter is the width
@@ -66,7 +68,7 @@ class TestMachineVision:
 
         # Load test image
         fpath = './img/rect_x143_y294_30degree_color_hsv20%_side95px.jpg'
-        colors = {'red': ([46, 250, 250], [53, 255, 255])}
+        colors = {'red': {'1': [[46, 250, 250], [53, 255, 255]]}}
         color = 'red'
         rect_actual_width_pixels = 95
         side_mm = 10
@@ -108,7 +110,7 @@ class TestMachineVision:
 
         # Load test image
         fpath = './img/rect_x143_y294_30degree_color_hsv20%_side95px.jpg'
-        colors = {'test': ([46, 250, 250], [53, 255, 255])}
+        colors = {'test': {'1': ([46, 250, 250], [53, 255, 255])}}
         rect_actual_width_pixels = 95
         side_mm = 10
         actual_pixels_in_mm = rect_actual_width_pixels / side_mm

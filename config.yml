@@ -28,20 +28,29 @@ network:
 
 bricks:
   # HSV color ranges for bricks, e.g. from [0, 100, 100] to [10, 255, 255]
+  # Each subkey (e.g. 1 and 2) defines a single continuous range and one color may
+  # consist of multiple ranges. Multi ranges are combined using OR operation.
   # Max values [180, 255, 255].
   colors:
     green:
-      - [55, 100, 8]
-      - [85, 255, 133]
+      1:
+        - [55, 100, 8]
+        - [85, 255, 133]
     red:
-      - [0, 150, 40]
-      - [5, 255, 141]
+      1:
+       - [0, 150, 40]
+       - [5, 255, 141]
+      2:
+       - [177, 150, 40]
+       - [180, 255, 141]
     yellow:
-      - [10, 150, 70]
-      - [25, 255, 205]
+      1:
+        - [10, 150, 70]
+        - [25, 255, 205]
     blue:
-      - [100, 150, 10]
-      - [120, 255, 105]
+      1:
+        - [100, 150, 10]
+        - [120, 255, 105]
 
 
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script

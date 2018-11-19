@@ -239,7 +239,14 @@ def _mask_by_color(img, color, draw=True):
     Parameters
     ----------
     img
-    color
+    color : dict
+        Has ranges for HSV colors to mask by. If multiple keys using OR logical oper.
+
+        Example
+        {'1': [[0, 0, 0], [10, 10, 10]],
+        '2': [[15, 0, 0], [16, 10, 10]]}
+        so the mask includes Hues from 0-10 and 15-16 with SV of 0-10, 0-10.
+
     draw
 
     Returns
@@ -250,8 +257,14 @@ def _mask_by_color(img, color, draw=True):
     #blurred = cv.GaussianBlur(np.copy(img), (5, 5), 0)  # reduces noise
     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
-    # Binary image by range
-    mask = cv.inRange(hsv, np.array(color[0]), np.array(color[1]))
+    # Binary mask image by range
+    mask = None
+    for _, rang in color.items():
+        if mask is None:
+            mask = cv.inRange(hsv, np.array(rang[0]), np.array(rang[1]))
+        else:
+            mask_ = cv.inRange(hsv, np.array(rang[0]), np.array(rang[1]))
+            mask = cv.bitwise_or(mask, mask_)
 
     kernel = np.ones((13, 13), np.uint8)
     morphed = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
