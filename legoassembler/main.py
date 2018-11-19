@@ -121,13 +121,13 @@ def _test_camera(cfg, rob, mv, platf_calib):
                                     platf_calib, 'red')
 
 
-def _load_build_plan():
-    lego_file = load_file()   # loads lego.ldr
+def _load_build_plan(fname):
+    lego_file = load_file(fname)
     plans = coordinates(lego_file)
     legos = number_of_bricks(plans)
 
     # make into millimeters
-    mmfact = 31.8
+    mmfact = 32
     mmfact_h = 19.2
     for plan in plans:
         plan[:3] = [(plan[0] - 1) * mmfact_h, plan[1] * mmfact, plan[2] * mmfact]
@@ -138,6 +138,7 @@ def _load_build_plan():
 
 def _build(cfg, rob, mv, platf_calib):
 
-    plan = _load_build_plan()
+    fname = cfg['lego_model_path']
+    plan = _load_build_plan(fname)
     travel_h = cfg['environment']['travel_height']
     legoassembler.build.build(rob, mv, platf_calib, plan, travel_h)

@@ -1,4 +1,5 @@
 
+lego_model_path: lego.ldr
 
 environment:
   # Travel height for the robot arm.

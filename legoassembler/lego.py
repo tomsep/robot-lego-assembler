@@ -1,13 +1,13 @@
 from __future__ import division, print_function
 
 
-def load_file():
+def load_file(fname):
 
     lines = []
     cleaned_lines = []
 
     # Open the LDraw file and read the lines.
-    with open("lego.ldr", "r") as lego:
+    with open(fname, "r") as lego:
 
         print ("The LEGO house model was loaded successfully.")
         print()
@@ -205,7 +205,8 @@ def printer(brick, planned):
 
 if __name__ == '__main__':
 
-    lego_file = load_file()
+    fname = 'lego.ldr'
+    lego_file = load_file(fname)
     plans = coordinates(lego_file)
     legos = number_of_bricks(plans)
     printer(legos, plans)
