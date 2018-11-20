@@ -46,6 +46,14 @@ def teach_platform(rob):
     rob.teachmode(msg)
     build_area.append(_level_pose(rob.get_tcp()))
 
+    msg = 'Repeat for another two corners. Corner 1.'
+    rob.teachmode(msg)
+    build_area.append(_level_pose(rob.get_tcp()))
+
+    msg = 'Last corner.'
+    rob.teachmode(msg)
+    build_area.append(_level_pose(rob.get_tcp()))
+
     msg = 'Move the gripper to corner (ground level)' \
           ' of the pickup platform.'
     rob.teachmode(msg)
@@ -95,6 +103,24 @@ def preview_taught_platform(rob, calib, travel_height):
     rob.movej(pose, v=vel, a=a)
     time.sleep(wait)
     rob.movel(poses['build'][1], v=vel, a=a)
+    time.sleep(wait)
+    rob.movel(pose, v=vel, a=a)
+    time.sleep(wait)
+
+    pose = deepcopy(poses['build'][2])
+    pose[2] += travel_height
+    rob.movej(pose, v=vel, a=a)
+    time.sleep(wait)
+    rob.movel(poses['build'][2], v=vel, a=a)
+    time.sleep(wait)
+    rob.movel(pose, v=vel, a=a)
+    time.sleep(wait)
+
+    pose = deepcopy(poses['build'][3])
+    pose[2] += travel_height
+    rob.movej(pose, v=vel, a=a)
+    time.sleep(wait)
+    rob.movel(poses['build'][3], v=vel, a=a)
     time.sleep(wait)
     rob.movel(pose, v=vel, a=a)
     time.sleep(wait)
@@ -423,7 +449,9 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
     origin_pose = deepcopy(build_platf[0])
     rpy = rob.rotvec2rpy(origin_pose[3:])
     avg_yaw = (rob.rotvec2rpy(origin_pose[3:])[-1] +
-               rob.rotvec2rpy(build_platf[1][3:])[-1]) / 2
+               rob.rotvec2rpy(build_platf[1][3:])[-1] +
+               rob.rotvec2rpy(build_platf[2][3:])[-1] +
+               rob.rotvec2rpy(build_platf[3][3:])[-1]) / 4
     rpy[2] = avg_yaw
     rotvec = rob.rpy2rotvec(rpy)
     origin_pose[3:] = rotvec
