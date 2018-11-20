@@ -7,8 +7,9 @@ from copy import deepcopy
 
 from legoassembler.vision import MachineVision, NoMatches
 
-GOPEN = 60
-GCLOSED = 70
+GOPEN = 53.5
+GOPEN_TIGHT = 60
+GCLOSED = 64
 FORCE = 55
 TCP = [0, 0, 0.193, 0, 0, 0]
 TCP_CAM = [0, -0.0625, 0.193, 0, 0, 0]
@@ -31,7 +32,7 @@ def teach_platform(rob):
     rob.popup('Hit continue to start guided calibration procedure.', blocking=True)
     rob.popup('Continue to initialize gripper.', blocking=True)
 
-    rob.grip(closed=GOPEN)
+    rob.grip(closed=GOPEN_TIGHT)
 
     msg = 'Place 2x2 block on one corner of the build platform.' \
               ' Guide the arm to grab the block.'
