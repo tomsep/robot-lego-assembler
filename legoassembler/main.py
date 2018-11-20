@@ -49,6 +49,9 @@ def run(cfg):
     if input('Start building? [Y/n]: ') == 'Y':
         _build(cfg, rob, mv, platform_calib)
 
+    if input('Pickup Demo? [Y/n]: ') == 'Y':
+        _pickup_demo(cfg, rob, mv, platform_calib)
+
 def _teach_platform(cfg, rob, load):
 
     if load:
@@ -142,3 +145,8 @@ def _build(cfg, rob, mv, platf_calib):
     plan = _load_build_plan(fname)
     travel_h = cfg['environment']['travel_height']
     legoassembler.build.build(rob, mv, platf_calib, plan, travel_h)
+
+def _pickup_demo(cfg, rob, mv, platf_calib):
+    legoassembler.build.pickup_demo(rob, mv, cfg['environment']['travel_height'],
+                                    platf_calib, ['red', 'blue', 'yellow'])
+
