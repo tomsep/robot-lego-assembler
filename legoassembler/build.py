@@ -18,6 +18,7 @@ def teach_platform(rob):
 
     rob.set_tcp(TCP)
     build_area = []
+    part_area = []
 
     def _level_pose(p_):
         # Make TCP pose level with the ground:
@@ -45,10 +46,15 @@ def teach_platform(rob):
     rob.teachmode(msg)
     build_area.append(_level_pose(rob.get_tcp()))
 
-    msg = 'Move the gripper to middle (ground level)' \
-              ' of the pickup platform.'
+    msg = 'Move the gripper to corner (ground level)' \
+          ' of the pickup platform.'
     rob.teachmode(msg)
-    part_area = _level_pose(rob.get_tcp())
+    part_area.append(_level_pose(rob.get_tcp()))
+
+    msg = 'Move the gripper to diagonal opposite corner (ground level)' \
+          ' of the pickup platform.'
+    rob.teachmode(msg)
+    part_area.append(_level_pose(rob.get_tcp()))
 
     rob.popup('Teaching finished!')
 
@@ -93,11 +99,20 @@ def preview_taught_platform(rob, calib, travel_height):
     rob.movel(pose, v=vel, a=a)
     time.sleep(wait)
 
-    pose = deepcopy(poses['part'])
+    pose = deepcopy(poses['part'][0])
     pose[2] += travel_height
     rob.movej(pose, v=vel, a=a)
     time.sleep(wait)
-    rob.movel(poses['part'], v=vel, a=a)
+    rob.movel(poses['part'][0], v=vel, a=a)
+    time.sleep(wait)
+    rob.movel(pose, v=vel, a=a)
+    time.sleep(wait)
+
+    pose = deepcopy(poses['part'][1])
+    pose[2] += travel_height
+    rob.movej(pose, v=vel, a=a)
+    time.sleep(wait)
+    rob.movel(poses['part'][1], v=vel, a=a)
     time.sleep(wait)
     rob.movel(pose, v=vel, a=a)
     time.sleep(wait)
@@ -196,7 +211,9 @@ def test_camera(rob, mv, travel_height, calib, color):
     wait = 0.0
     vel = 1
     a = 0.3
-    imaging_area = calib['taught_poses']['part']
+
+    imaging_area = _midpoint_of_poses(calib['taught_poses']['part'][0],
+                                      calib['taught_poses']['part'][1])
     place_area = calib['taught_poses']['build'][0]
 
     rob.popup('Press continue to start test', blocking=True)
@@ -308,7 +325,8 @@ def build(rob, mv, platf_calib, plan, travel_height):
     rob.popup('Continue to start building', blocking=True)
     rob.set_tcp(TCP)
 
-    imaging_area = platf_calib['taught_poses']['part']
+    imaging_area = _midpoint_of_poses(platf_calib['taught_poses']['part'][0],
+                                      platf_calib['taught_poses']['part'][1])
 
     # Goto starting height above
     pose = rob.get_tcp()
@@ -354,6 +372,15 @@ def build(rob, mv, platf_calib, plan, travel_height):
             p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
             p2 = [xoff, yoff, 0] + rob.rotvec2rpy([0, 0, 0])
             pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, angle_off]
+
+            curr_pose_xy = rob.get_tcp()[:2]
+            curr_pose_xy[0] += pose_[0]
+            curr_pose_xy[1] += pose_[1]
+
+            is_it = _is_within_rect(curr_pose_xy, platf_calib['taught_poses']['part'][0],
+                                      platf_calib['taught_poses']['part'][1])
+            if not is_it:
+                continue
             rob.movej(pose_, v=vel, a=a, relative=True)
             time.sleep(wait)
 
@@ -418,3 +445,25 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
     rob.movej(pose, v=vel, a=a)
 
     place_block(rob, target_z=target_pose[2], target_pose=target_pose)
+
+
+def _midpoint_of_poses(p1, p2):
+    # xy midpoint, rotation and z same as p1.
+    pose = deepcopy(p1)
+    pose[0] = (p1[0] + p2[0]) / 2
+    pose[1] = (p1[1] + p2[1]) / 2
+    return pose
+
+
+def _is_within_rect(xy, p1, p2):
+    """ If xy is withing rectangle defined by p1, p2
+
+    """
+
+    for i in range(2):
+        if p1[i] <= xy[i] <= p2[i] or p2[i] <= xy[i] <= p1[i]:
+            continue
+        else:
+            return False
+
+    return True
