@@ -348,12 +348,11 @@ def build(rob, mv, platf_calib, plan, travel_height):
     for target in plan:
 
         # Go above imaging area
-        rob.set_tcp(TCP)
+        rob.set_tcp(TCP_CAM)
         pose = deepcopy(imaging_area)
         pose[2] += travel_height
         rob.movej(pose, v=vel, a=a)
 
-        rob.set_tcp(TCP_CAM)
         # Open gripper
         rob.grip(closed=GOPEN)
 
@@ -380,7 +379,12 @@ def build(rob, mv, platf_calib, plan, travel_height):
             is_it = _is_within_rect(curr_pose_xy, platf_calib['taught_poses']['part'][0],
                                       platf_calib['taught_poses']['part'][1])
             if not is_it:
+                # Go back to above imaging area
+                pose = deepcopy(imaging_area)
+                pose[2] += travel_height
+                rob.movej(pose, v=vel, a=a)
                 continue
+
             rob.movej(pose_, v=vel, a=a, relative=True)
             time.sleep(wait)
 
