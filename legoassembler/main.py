@@ -71,7 +71,7 @@ def _calibrate_camera(cfg, rob, mv, platf_calib, load):
             #_upload_scipt(cfg, 'calibrate_camera', ur_client)
             #host.accept()
             travel_height = cfg['environment']['travel_height']
-            legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib, 32, 'red')
+            legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib, 32, 'blue')
             mv.save_calibration(cfg['calibration_data']['camera'])
 
 def _preview_taught_platform(cfg, rob, calib):
