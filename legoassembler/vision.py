@@ -114,33 +114,41 @@ class MachineVision:
         except ValueError:
             raise NoMatches
 
-        bricks = sorted(bricks, key=lambda x: math.sqrt(x['cx']**2 + x['cy']**2))
-        if len(bricks) == 0:
-            raise NoMatches
-        brick = bricks[0]
+
+        for brick in bricks:
+
+            brick['x_mm'], brick['y_mm'] = self._distance_from_p1(self.tcp_xy,
+                                                                  (brick['cx'],
+                                                                   brick['cy']),
+                                                                  as_mm=True)
+            brick['y_mm'] *= -1  # Change y axis direction
+            brick['ratio'] = brick['dimensions'][0] / brick['dimensions'][1]
+
+            angle = brick['angle']  # + math.radians(90)  # Angle w.r.t y
+
+            if angle < math.radians(-45):
+                angle = math.radians(90) + angle
+                print('here')
+
+            # Angle should always be between (-90, +90]
+            if angle > math.degrees(90):
+                angle -= math.degrees(180)
+            elif angle <= math.degrees(-90):
+                angle += math.degrees(180)
+
+            brick['angle'] = angle
 
         target_ratio = size[0] / size[1]
-        brick_ratio = brick['dimensions'][0] / brick['dimensions'][1]
+        bricks = filter(lambda x: abs(target_ratio - x['ratio']) <= margin, bricks)
 
-        if abs(target_ratio - brick_ratio) > margin:
+
+        if len(bricks) == 0:
             raise NoMatches
 
-        angle = brick['angle']# + math.radians(90)  # Angle w.r.t y
+        bricks = sorted(bricks, key=lambda x: math.sqrt(x['x_mm'] ** 2 + x['y_mm'] ** 2))
+        brick = bricks[0]
 
-        if angle < math.radians(-45):
-            angle = math.radians(90) + angle
-            print('here')
-
-        # Angle should always be between (-90, +90]
-        if angle > math.degrees(90):
-            angle -= math.degrees(180)
-        elif angle <= math.degrees(-90):
-            angle += math.degrees(180)
-
-        x_mm, y_mm = self._distance_from_p1(self.tcp_xy, (brick['cx'], brick['cy']),
-                                       as_mm=True)
-        y_mm = -y_mm  # Change y axis direction
-        match = {'x': x_mm, 'y': y_mm, 'angle': angle}
+        match = {'x': brick['x_mm'], 'y': brick['y_mm'], 'angle': brick['angle']}
         return match
 
     def _distance_from_p1(self, p1, p2, as_mm):
