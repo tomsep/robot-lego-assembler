@@ -47,7 +47,12 @@ def run(cfg):
         _test_camera(cfg, rob, mv, platform_calib)
 
     if input('Start building? [Y/n]: ') == 'Y':
-        _build(cfg, rob, mv, platform_calib)
+
+        if input('Continue previous build? [Y/n]: ') == 'Y':
+            load = True
+        else:
+            load = False
+        _build(cfg, rob, mv, platform_calib, load)
 
     if input('Pickup Demo? [Y/n]: ') == 'Y':
         _pickup_demo(cfg, rob, mv, platform_calib)
@@ -139,12 +144,12 @@ def _load_build_plan(fname):
 
     return plans
 
-def _build(cfg, rob, mv, platf_calib):
+def _build(cfg, rob, mv, platf_calib, load_state):
 
     fname = cfg['lego_model_path']
     plan = _load_build_plan(fname)
     travel_h = cfg['environment']['travel_height']
-    legoassembler.build.build(rob, mv, platf_calib, plan, travel_h)
+    legoassembler.build.build(rob, mv, platf_calib, plan, travel_h, load_state)
 
 def _pickup_demo(cfg, rob, mv, platf_calib):
     legoassembler.build.pickup_demo(rob, mv, cfg['environment']['travel_height'],

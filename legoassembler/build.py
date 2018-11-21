@@ -4,6 +4,7 @@ import time
 import numpy as np
 from math import radians, sin, cos
 from copy import deepcopy
+import json
 
 from legoassembler.vision import MachineVision, NoMatches
 
@@ -343,10 +344,23 @@ def wiggle(robot, max_mm, target_pose):
     robot.movej(tcp, v=0.1, a=0.05)
 
 
-def build(rob, mv, platf_calib, plan, travel_height):
+def build(rob, mv, platf_calib, plan, travel_height, load_state=False):
     wait = 0.0
     vel = 1.5
     a = 0.6
+
+    state_fname = 'build_state.json'
+    if load_state:
+        with open(state_fname, 'r') as f:
+            state = json.loads(f.read())
+        if state['current_index'] > len(state['plan']):
+            print('Loaded build already finished!')
+            return
+    else:
+        state = {'plan': plan, 'current_index': 0}
+
+
+    plan = state['plan']
 
     rob.popup('Continue to start building', blocking=True)
     rob.set_tcp(TCP)
@@ -371,7 +385,9 @@ def build(rob, mv, platf_calib, plan, travel_height):
         time.sleep(wait)
         return pose_
 
-    for target in plan:
+    for i in range(state['current_index'], len(state['plan'])):
+
+        target = plan[i]
 
         # Go above imaging area
         rob.set_tcp(TCP_CAM)
@@ -433,6 +449,12 @@ def build(rob, mv, platf_calib, plan, travel_height):
                            target, travel_height, vel, a)
 
         rob.grip(closed=GOPEN)
+
+        # Save state
+        state['current_index'] = i + 1
+        with open(state_fname, 'w') as f:
+            f.write(json.dumps(state))
+
         pose = rob.get_tcp()
         pose[2] = travel_height
         rob.movel(pose, v=vel, a=a)
