@@ -32,25 +32,27 @@ bricks:
   # consist of multiple ranges. Multi ranges are combined using OR operation.
   # Max values [180, 255, 255].
   colors:
-    green:
+    light_green:
       1:
-        - [60, 150, 4]
-        - [85, 255, 70]
+        - [53, 40, 28]
+        - [80, 255, 255]
     red:
       1:
-       - [0, 115, 25]
-       - [5, 255, 145]
+       - [0, 115, 85]
+       - [7, 255, 215]
       2:
-       - [175, 115, 25]
-       - [180, 255, 145]
+       - [175, 115, 85]
+       - [180, 255, 215]
     yellow:
       1:
-        - [10, 155, 85]
-        - [25, 255, 205]
+        #- [11, 115, 145]
+        #- [28, 255, 255]
+        - [53, 40, 28]  # actually green
+        - [80, 255, 255]
     blue:
       1:
-        - [100, 75, 10]
-        - [120, 255, 135]
+        - [100, 115, 45]
+        - [120, 255, 200]
 
 
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
