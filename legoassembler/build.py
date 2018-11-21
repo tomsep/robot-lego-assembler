@@ -548,7 +548,7 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
     origin_pose = deepcopy(build_platf[0])
     rpy = rob.rotvec2rpy(origin_pose[3:])
     points = [x[:2] for x in build_platf]
-    rpy[2] = rect_angle_2d(points)
+    rpy[2] = rect_angle(points)
     rotvec = rob.rpy2rotvec(rpy)
     origin_pose[3:] = rotvec
 
@@ -596,7 +596,7 @@ def _is_within_rect(xy, p1, p2):
     return True
 
 
-def rect_angle_2d(points):
+def rect_angle(points):
     # points: [p1, p_diag_to_p1, p2, p_diag_to_p2]; 2D points
     # return angle in right-handed coordinate system
 
