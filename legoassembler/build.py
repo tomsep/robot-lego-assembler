@@ -2,14 +2,14 @@ from __future__ import division
 from __future__ import print_function
 import time
 import numpy as np
-from math import radians, sin, cos
+from math import radians, sin, cos, atan2
 from copy import deepcopy
 
 from legoassembler.vision import MachineVision, NoMatches
 
-GOPEN = 53.5
-GOPEN_TIGHT = 60
-GCLOSED = 64
+GOPEN = 60
+GOPEN_TIGHT = 65
+GCLOSED = 69
 FORCE = 55
 TCP = [0, 0, 0.193, 0, 0, 0]
 TCP_CAM = [0, -0.0625, 0.193, 0, 0, 0]
@@ -547,14 +547,10 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
 
     origin_pose = deepcopy(build_platf[0])
     rpy = rob.rotvec2rpy(origin_pose[3:])
-    avg_yaw = (rob.rotvec2rpy(origin_pose[3:])[-1] +
-               rob.rotvec2rpy(build_platf[1][3:])[-1] +
-               rob.rotvec2rpy(build_platf[2][3:])[-1] +
-               rob.rotvec2rpy(build_platf[3][3:])[-1]) / 4
-    rpy[2] = avg_yaw
+    points = [x[:2] for x in build_platf]
+    rpy[2] = np.unwrap([rect_angle(points) - radians(180)])[0]
     rotvec = rob.rpy2rotvec(rpy)
     origin_pose[3:] = rotvec
-
 
     # Platform coords to global
     rpy_ = rob.rotvec2rpy(origin_pose[3:])  # rpy = [roll, pitch, yaw]
@@ -598,3 +594,23 @@ def _is_within_rect(xy, p1, p2):
             return False
 
     return True
+
+
+def rect_angle(points):
+    # points: [p1, p_diag_to_p1, p2, p_diag_to_p2]; 2D points
+    # return angle in right-handed coordinate system
+
+    points = [np.array(x) for x in points]
+    if len(points[0]) == 2:
+        points = [np.append(x, 0) for x in points]
+
+    # Find x-axis
+    x_vec = points[2] - points[0]
+    y_vec = points[3] - points[0]
+    cross = np.cross(x_vec, y_vec)
+    if np.sign(cross[2]) == -1:
+        x_vec = y_vec
+
+    # Angle around z w.r.t global x-axis
+    angle = atan2(x_vec[1], x_vec[0]) - atan2(0, 1)
+    return np.unwrap([angle])[0]
