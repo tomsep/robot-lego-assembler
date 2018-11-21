@@ -2,14 +2,14 @@ from __future__ import division
 from __future__ import print_function
 import time
 import numpy as np
-from math import radians, sin, cos
+from math import radians, sin, cos, atan2
 from copy import deepcopy
 
 from legoassembler.vision import MachineVision, NoMatches
 
-GOPEN = 53.5
-GOPEN_TIGHT = 60
-GCLOSED = 64
+GOPEN = 60
+GOPEN_TIGHT = 65
+GCLOSED = 69
 FORCE = 55
 TCP = [0, 0, 0.193, 0, 0, 0]
 TCP_CAM = [0, -0.0625, 0.193, 0, 0, 0]
@@ -548,7 +548,7 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
     origin_pose = deepcopy(build_platf[0])
     rpy = rob.rotvec2rpy(origin_pose[3:])
     points = [x[:2] for x in build_platf]
-    rpy[2] = rect_angle(points)
+    rpy[2] = np.unwrap([rect_angle(points) - radians(180)])[0]
     rotvec = rob.rpy2rotvec(rpy)
     origin_pose[3:] = rotvec
 
