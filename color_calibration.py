@@ -191,7 +191,29 @@ def _format_ranges(ranges):
     return new_ranges
 
 
-def color_calibration_from_img(img, min_prop=0.98, fname='color_definitions.yml'):
+def _widen_hsv_color_range(color_range, proportion):
+    """Widens range by proportion
+    new lower bound = old - (old * proportion / 2)
+    new upper bound = old + (old * proportion / 2)
+    """
+    new_range = [[None, None, None], [None, None, None]]
+    max_values = [180, 255, 255] # h, s ,v
+    for i in range(3):
+        width = color_range[1][i] - color_range[0][i]
+        low = int(color_range[0][i] - (width * proportion / 2))
+        if low < 0:
+            low = 0
+        high = int(color_range[1][i] + (width * proportion / 2))
+        if high > max_values[i]:
+            high = max_values[i]
+
+        new_range[0][i] = low
+        new_range[1][i] = high
+
+    return new_range
+
+
+def color_calibration_from_img(img, widen_prop=0.25, min_prop=0.98, fname='color_definitions.yml'):
     """ Do user assisted color calibration
 
     User is instructed to select 4 points within the image. These points specify an area.
@@ -218,6 +240,10 @@ def color_calibration_from_img(img, min_prop=0.98, fname='color_definitions.yml'
     Parameters
     ----------
     img : numpy.ndarray
+    widen_prop : float
+        Proportion (0..1) to widen the optimized color range. I.e. if hue has range
+        10 to 25 after optimization the 10 is lowered according to widen_prop
+        and similarly 25 is made larger.
     min_prop : float
         Proportion (0..1).
     fname : str
@@ -243,9 +269,13 @@ def color_calibration_from_img(img, min_prop=0.98, fname='color_definitions.yml'
                 if color_defs is None:  # if empty file
                     color_defs = {}
 
-        color_defs[name] = _format_ranges(color_def)
-        # color_defs[name] = {'hue': color_def[0], 'saturation': color_def[1],
-        #                     'value': color_def[2]}
+        color_def = _format_ranges(color_def)
+
+        # Widen range by widen_prop bit
+        for i in range(len(color_def)):
+            color_def[i] = _widen_hsv_color_range(color_def[i], widen_prop)
+        color_defs[name] = color_def
+
         with open(fname, 'w') as f:
             f.write(yaml.dump(color_defs))
         print('Color definition added for "{}".'.format(name))
