@@ -267,7 +267,7 @@ def _mask_by_color(img, color, draw=True):
 
     # Binary mask image by range
     mask = None
-    for _, rang in color.items():
+    for rang in color:
         if mask is None:
             mask = cv.inRange(hsv, np.array(rang[0]), np.array(rang[1]))
         else:

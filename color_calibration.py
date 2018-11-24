@@ -287,6 +287,6 @@ def color_calibration_from_img(img, widen_prop=0.25, min_prop=0.98, fname='color
 
 
 if __name__ == '__main__':
-    img_name = 'imgs/img_7.png'
+    img_name = 'img.jpg'
     img = cv.imread(img_name, cv.IMREAD_COLOR)
     color_calibration_from_img(img)

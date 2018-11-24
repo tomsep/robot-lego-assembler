@@ -20,43 +20,9 @@ network:
     port: 9002
 
 
-#camera:
-#  resolution:
-#    x: 1200
-#    y: 800
-
-
-bricks:
-  # HSV color ranges for bricks, e.g. from [0, 100, 100] to [10, 255, 255]
-  # Each subkey (e.g. 1 and 2) defines a single continuous range and one color may
-  # consist of multiple ranges. Multi ranges are combined using OR operation.
-  # Max values [180, 255, 255].
-  colors:
-    light_green:
-      1:
-        - [53, 40, 28]
-        - [80, 255, 255]
-    red:
-      1:
-       - [0, 115, 85]
-       - [7, 255, 215]
-      2:
-       - [175, 115, 85]
-       - [180, 255, 215]
-    yellow:
-      1:
-        #- [11, 115, 145]
-        #- [28, 255, 255]
-        - [53, 40, 28]  # actually green
-        - [80, 255, 255]
-    blue:
-      1:
-        - [100, 115, 45]
-        - [120, 255, 200]
-
-
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
 
 calibration_data:
   camera: camera_calibr.yml
   platform: platform_calibr.yml
+  colors: color_definitions.yml

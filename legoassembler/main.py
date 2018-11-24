@@ -118,11 +118,16 @@ def _connect_to_camera_client(cfg):
 
 def _mv_setup(cfg, cam_client):
 
-    mv = MachineVision(cam_client, cfg['bricks']['colors'], {'iso': 800, 'resolution': [800, 600]})
+    # load color definitions
+    with open(cfg['calibration_data']['colors'], 'r') as f:
+        color_defs = yaml.safe_load(f.read())
+
+    mv = MachineVision(cam_client, color_defs, {'iso': 800, 'resolution': [800, 600]})
     fpath = cfg['calibration_data']['camera']
     if os.path.isfile(fpath):
         mv.load_calibration(cfg['calibration_data']['camera'])
     return mv
+
 
 def _test_camera(cfg, rob, mv, platf_calib):
     legoassembler.build.test_camera(rob, mv, cfg['environment']['travel_height'],
