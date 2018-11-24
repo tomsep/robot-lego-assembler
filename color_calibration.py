@@ -133,6 +133,8 @@ def _hsv_range_in_selection(img, points, min_prop):
 
         # split into two ranges if opt bounds over max value
         if opt[1] > max_val:
+            if opt[0] > max_val:
+                opt[0] -= max_val
             opt = [[opt[0], max_val], [0, opt[1] - max_val]]
         else:
             opt = [opt]
