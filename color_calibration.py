@@ -94,8 +94,8 @@ def _hsv_range_in_selection(img, points, min_prop):
     numpy.ndarray
         Ranges for each channel.
         E.g. [[[0, 5], [175,180]],  # Hue. Two ranges: 0->5 and 175->180
-             [120, 150],            # Saturation. Just one range
-             [50, 75]]              # Value.
+             [[120, 150]],            # Saturation. Just one range
+             [[50, 75]]]              # Value.
 
 
     """
@@ -134,10 +134,59 @@ def _hsv_range_in_selection(img, points, min_prop):
         # split into two ranges if opt bounds over max value
         if opt[1] > max_val:
             opt = [[opt[0], max_val], [0, opt[1] - max_val]]
+        else:
+            opt = [opt]
 
         channel_ranges.append(opt)
 
     return channel_ranges
+
+
+def _format_ranges(ranges):
+    """ Create a list of ranges. Range: [h1, s1, v1] to [h2, s2, v2]
+
+    Examples
+    --------
+    input: [
+            [[0, 5], [175, 180]],   # hue, two ranges
+            [100, 200],             # saturation, only one range
+            [50, 75]                # value, only one range
+            ]
+
+    Because Hue has two ranges then the result has two ranges.
+    Satur. and val. have only one range and so their first (and now only one) is
+    duplicated to each result range.
+
+    result: [
+        [[0, 100, 50], [5, 200, 75]],     # first range
+        [[175, 100, 50], [180, 200, 75]]  # second
+    ]
+
+    """
+
+    # Make all len 2 if any one is len 2
+    if max([len(x) for x in ranges]) == 2:
+        hues = ranges[0]
+        if len(hues) == 1:
+            hues *= 2
+
+        saturs = ranges[1]
+        if len(saturs) == 1:
+            saturs *= 2
+
+        vals = ranges[2]
+        if len(vals) == 1:
+            vals *= 2
+    else:
+        hues, saturs, vals = ranges[0], ranges[1], ranges[2]
+
+    new_ranges = []
+    for i in range(len(hues)):
+        start = [hues[i][0], saturs[i][0], vals[i][0]]
+        end = [hues[i][1], saturs[i][1], vals[i][1]]
+        new_ranges.append([start, end])
+
+    return new_ranges
 
 
 def color_calibration_from_img(img, min_prop=0.98, fname='color_definitions.yml'):
@@ -152,6 +201,17 @@ def color_calibration_from_img(img, min_prop=0.98, fname='color_definitions.yml'
         * range contains atleast 'min_prop' proportion of the total count of values.
 
     Color definitions are saved in yaml format.
+    E.g. red might have entry:
+    red:
+        - - [177, 126, 41]
+          - [180, 246, 122]
+        - - [0, 126, 41]
+          - [3, 246, 122]
+    which means that red is defined as two ranges:
+        hue, satur, val
+        [177, 126, 41] to [180, 246, 122]
+        and
+        [0, 126, 41] to [3, 246, 122]
 
     Parameters
     ----------
@@ -161,8 +221,6 @@ def color_calibration_from_img(img, min_prop=0.98, fname='color_definitions.yml'
     fname : str
         Filename for the color definitions.
 
-    Returns
-    -------
 
     """
 
@@ -183,8 +241,9 @@ def color_calibration_from_img(img, min_prop=0.98, fname='color_definitions.yml'
                 if color_defs is None:  # if empty file
                     color_defs = {}
 
-        color_defs[name] = {'hue': color_def[0], 'saturation': color_def[1],
-                            'value': color_def[2]}
+        color_defs[name] = _format_ranges(color_def)
+        # color_defs[name] = {'hue': color_def[0], 'saturation': color_def[1],
+        #                     'value': color_def[2]}
         with open(fname, 'w') as f:
             f.write(yaml.dump(color_defs))
         print('Color definition added for "{}".'.format(name))
