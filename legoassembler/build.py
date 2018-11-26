@@ -352,11 +352,11 @@ def wiggle(robot, max_mm, target_pose):
     robot.movej(tcp, v=0.1, a=0.05)
 
 
-def build(rob, mv, platf_calib, plan, travel_height, load_state=False):
+def build(rob, mv, platf_calib, plan, travel_height, ideal_side_len,
+          load_state=False):
     wait = 0.0
     vel = 1.5
-    a = 0.6
-
+    a = 0.6 * 2
     state_fname = 'build_state.json'
     if load_state:
         with open(state_fname, 'r') as f:
@@ -468,13 +468,8 @@ def build(rob, mv, platf_calib, plan, travel_height, load_state=False):
         rob.movel(pose, v=vel, a=a)
         time.sleep(wait)
 
-        # Place
-        if target[3] != 'parallel_to_y':
-            turn = radians(-90)
-        else:
-            turn = 0
         _place_on_platform(rob, platf_calib['taught_poses']['build'],
-                           target, travel_height, vel, a, turn)
+                           target, travel_height, vel, a, ideal_side_len)
 
         rob.grip(closed=GOPEN)
 
@@ -587,7 +582,8 @@ def pickup_demo(rob, mv, travel_height, platf_calib, colors):
         rob.movej(pose, v=vel, a=a)
         rob.grip(closed=GOPEN)
 
-def _place_on_platform(rob, build_platf, target, travel_height, vel, a, turn=0):
+def _place_on_platform(rob, build_platf, target, travel_height, vel, a, ideal_side_len,
+                       turn=0):
     # Use build_platf[0] as origin of the platform. X and Y towards corner [1]
     x_sign, y_sign = (1, 1)
     if build_platf[0][0] - build_platf[1][0] > 0:
@@ -602,10 +598,13 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a, turn=0):
     rotvec = rob.rpy2rotvec(rpy)
     origin_pose[3:] = rotvec
 
+    corners = np.array(build_platf)[:, :2]
+    x_act, y_act = _actual_step_width(corners, ideal_side_len / 1000)
+
     # Platform coords to global
     rpy_ = rob.rotvec2rpy(origin_pose[3:])  # rpy = [roll, pitch, yaw]
     p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
-    p2 = [target[1] / 1000, target[2] / 1000, 0] + rob.rotvec2rpy([0, 0, radians(90)])
+    p2 = [target[1] * x_act, target[2] * y_act, 0] + rob.rotvec2rpy([0, 0, 0])
     target_rel_pose = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
     target_pose = deepcopy(origin_pose)
     target_pose[0] += target_rel_pose[0]
@@ -629,6 +628,42 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a, turn=0):
     rob.movel(pose, v=vel, a=a)
 
     place_block(rob, target_z=target_z, target_pose=target_pose)
+
+
+def _actual_step_width(points, ideal):
+
+    if type(points) != np.ndarray:
+        points = np.array(points)
+
+    point_dim = np.shape(points)[1]
+    if not point_dim == 2:
+        raise ValueError('Points are not 2D')
+
+    # Add 0 3rd vector component
+    points = np.append(points, np.zeros((4, 1)), axis=1)
+
+    # TODO: test if close to rectangle
+
+    # Find y and x direction vectors by trying both of last 2 calib points
+    edge1 = points[2] - points[0]
+    edge2 = points[3] - points[0]
+    cross = np.cross(edge1, edge2)
+    if cross[0] > 0:
+        axis_x = edge2
+        axis_y = edge1
+    else:
+        axis_x = edge1
+        axis_y = edge2
+
+    axis_x_norm = np.linalg.norm(axis_x)
+    axis_y_norm = np.linalg.norm(axis_y)
+    axis_x_dim = round(axis_x_norm / ideal, ndigits=0)
+    axis_y_dim = round(axis_y_norm / ideal, ndigits=0)
+
+    actual_x_step = axis_x_norm / axis_x_dim
+    actual_y_step = axis_y_norm / axis_y_dim
+
+    return actual_x_step, actual_y_step
 
 
 def _midpoint_of_poses(p1, p2):

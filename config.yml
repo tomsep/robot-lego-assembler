@@ -19,6 +19,7 @@ network:
     ip: 192.168.1.218
     port: 9002
 
+brick_2x2_length: 31.8
 
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
 

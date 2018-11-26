@@ -140,7 +140,7 @@ def _load_build_plan(fname):
     legos = number_of_bricks(plans)
 
     # make into millimeters
-    mmfact = 32
+    mmfact = 1
     mmfact_h = 19.2
     for plan in plans:
         plan[:3] = [(plan[0] - 1) * mmfact_h, plan[1] * mmfact, plan[2] * mmfact]
@@ -154,7 +154,8 @@ def _build(cfg, rob, mv, platf_calib, load_state):
     fname = cfg['lego_model_path']
     plan = _load_build_plan(fname)
     travel_h = cfg['environment']['travel_height']
-    legoassembler.build.build(rob, mv, platf_calib, plan, travel_h, load_state)
+    ideal_side_len = cfg['brick_2x2_length']
+    legoassembler.build.build(rob, mv, platf_calib, plan, travel_h, ideal_side_len, load_state)
 
 def _pickup_demo(cfg, rob, mv, platf_calib):
     legoassembler.build.pickup_demo(rob, mv, cfg['environment']['travel_height'],
