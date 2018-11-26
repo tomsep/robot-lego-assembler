@@ -3,8 +3,8 @@ import numpy as np
 from math import radians
 
 
-def rectangle_angle_2d(points):
-    """ Angle (-pi/2..pi/2) of the shortest edge w.r.t x-axis
+def rectangle_angle_2d(points, max_edge=False):
+    """ Angle (-pi/2..pi/2) of the edge w.r.t x-axis
 
     Parameters
     ----------
@@ -17,6 +17,10 @@ def rectangle_angle_2d(points):
         |           |
         |           |
         d --------- c
+
+    max_edge : bool
+        If the angle is computed between x-axis and the longest edge
+        or w.r.t the shortest one.
 
     Returns
     -------
@@ -47,8 +51,12 @@ def rectangle_angle_2d(points):
     edges = np.roll(points, -1, axis=0) - points
     norms = np.transpose(np.linalg.norm(edges, axis=1))[:, np.newaxis]
 
-    min_edge = edges[np.argmin(norms)]
-    angle = np.arctan2(min_edge[1], min_edge[0])
+    if max_edge:
+        edge = edges[np.argmax(norms)]
+    else:
+        edge = edges[np.argmin(norms)]
+
+    angle = np.arctan2(edge[1], edge[0])
     return wrap_to_half_pi(angle)
 
 

@@ -71,7 +71,7 @@ class MachineVision:
         self.pixels_in_mm = data['pixels_in_mm']
         self.tcp_xy = data['tcp_xy']
 
-    def find_brick(self, color, size, margin=0.2, draw=True):
+    def find_brick(self, color, size, margin=0.2, use_max_edge=False, draw=True):
         """ Localize brick with best dimension match and specified color
 
 
@@ -109,7 +109,7 @@ class MachineVision:
         """
 
         img = remote_capture(self.client, self.cam_params)
-        bricks = _find_bricks_of_color(img, self.colors[color], draw)
+        bricks = _find_bricks_of_color(img, self.colors[color], use_max_edge, draw)
 
         try:
             bricks = _best_rect_ratio_match(bricks, size, margin)
@@ -183,7 +183,7 @@ def save_img(img, fname):
     cv.imwrite(fname, img)
 
 
-def _find_bricks_of_color(img, color, draw=True):
+def _find_bricks_of_color(img, color, use_max_edge, draw=True):
     """ Find all bricks of certain color
 
     Parameters
@@ -206,7 +206,7 @@ def _find_bricks_of_color(img, color, draw=True):
         draw_on = None
     contours = _find_contours(mask, draw_on)
 
-    bricks = _bounding_rectangles(img, contours, draw)
+    bricks = _bounding_rectangles(img, contours, use_max_edge, draw)
 
     return bricks
 
@@ -313,7 +313,7 @@ def _rectangle_area(points):
     return area
 
 
-def _bounding_rectangles(img, contours, draw=True):
+def _bounding_rectangles(img, contours, use_max_edge=False, draw=True):
     """ Fit minimum bounding rectangles to contours
 
     Parameters
@@ -339,7 +339,7 @@ def _bounding_rectangles(img, contours, draw=True):
         try:
             cx, cy = rectangle_center_2d(points)
             cx, cy = int(cx), int(cy)
-            angle = rectangle_angle_2d(points)
+            angle = rectangle_angle_2d(points, use_max_edge)
         except ValueError:
             # min rect has 0 len edges
             continue
