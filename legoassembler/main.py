@@ -43,9 +43,6 @@ def run(cfg):
         load = True
     _calibrate_camera(cfg, rob, mv, platform_calib, load)
 
-    if input('Test camera? [Y/n]: ') == 'Y':
-        _test_camera(cfg, rob, mv, platform_calib)
-
     if input('Start building? [Y/n]: ') == 'Y':
 
         if input('Continue previous build? [Y/n]: ') == 'Y':
@@ -54,8 +51,6 @@ def run(cfg):
             load = False
         _build(cfg, rob, mv, platform_calib, load)
 
-    if input('Pickup Demo? [Y/n]: ') == 'Y':
-        _pickup_demo(cfg, rob, mv, platform_calib)
 
 def _teach_platform(cfg, rob, load):
 
@@ -81,6 +76,7 @@ def _calibrate_camera(cfg, rob, mv, platf_calib, load):
             travel_height = cfg['environment']['travel_height']
             legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib, 32, 'blue')
             mv.save_calibration(cfg['calibration_data']['camera'])
+
 
 def _preview_taught_platform(cfg, rob, calib):
     legoassembler.build.preview_taught_platform(rob, calib, cfg['environment']['travel_height'])
@@ -129,11 +125,6 @@ def _mv_setup(cfg, cam_client):
     return mv
 
 
-def _test_camera(cfg, rob, mv, platf_calib):
-    legoassembler.build.test_camera(rob, mv, cfg['environment']['travel_height'],
-                                    platf_calib, 'red')
-
-
 def _load_build_plan(fname):
     lego_file = load_file(fname)
     plans = coordinates(lego_file)
@@ -149,6 +140,7 @@ def _load_build_plan(fname):
 
     return plans
 
+
 def _build(cfg, rob, mv, platf_calib, load_state):
 
     fname = cfg['lego_model_path']
@@ -156,8 +148,3 @@ def _build(cfg, rob, mv, platf_calib, load_state):
     travel_h = cfg['environment']['travel_height']
     ideal_side_len = cfg['brick_2x2_length']
     legoassembler.build.build(rob, mv, platf_calib, plan, travel_h, ideal_side_len, load_state)
-
-def _pickup_demo(cfg, rob, mv, platf_calib):
-    legoassembler.build.pickup_demo(rob, mv, cfg['environment']['travel_height'],
-                                    platf_calib, ['red', 'blue', 'yellow'])
-
