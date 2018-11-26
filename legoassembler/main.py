@@ -66,7 +66,9 @@ def _teach_platform(cfg, rob, load):
             calib = yaml.load(f)
     else:
         with open(cfg['calibration_data']['platform'], 'w') as f:
-            calib = legoassembler.build.teach_platform(rob)
+            gripper = cfg['gripper']
+            tcp = cfg['tcp']
+            calib = legoassembler.build.teach_platform(rob, gripper, tcp)
             f.write(yaml.dump(calib))
     return calib
 
@@ -83,13 +85,20 @@ def _calibrate_camera(cfg, rob, mv, platf_calib, load):
             travel_height = cfg['environment']['travel_height']
             brick_2x2_length = cfg['brick_2x2_length']
             color = cfg['calibration_color']
-            legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib,
-                                                 brick_2x2_length, color)
+            gripper = cfg['gripper']
+            tcp = cfg['tcp']
+            legoassembler.build.calibrate_camera(rob, mv, gripper, tcp, travel_height,
+                                                 platf_calib, brick_2x2_length, color)
             mv.save_calibration(cfg['calibration_data']['camera'])
 
 
 def _preview_taught_platform(cfg, rob, calib):
-    legoassembler.build.preview_taught_platform(rob, calib, cfg['environment']['travel_height'])
+    gripper = cfg['gripper']
+    tcp = cfg['tcp']
+    legoassembler.build.\
+        preview_taught_platform(rob, tcp, calib,
+                                cfg['environment']['travel_height'],
+                                gripper)
 
 
 def _connect_to_camera_client(cfg):
@@ -151,5 +160,8 @@ def _build(cfg, rob, mv, platf_calib, load_state):
     travel_h = cfg['environment']['travel_height']
     unit_brick_dims = {'side': cfg['brick_2x2_length'] / 1000,
                        'base_height': cfg['brick_base_height'] / 1000}
+    gripper = cfg['gripper']
+    tcp = cfg['tcp']
 
-    legoassembler.build.build(rob, mv, platf_calib, plan, travel_h, unit_brick_dims, load_state)
+    legoassembler.build.build(rob, mv, gripper, tcp, platf_calib, plan, travel_h,
+                              unit_brick_dims, load_state)

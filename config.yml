@@ -23,6 +23,20 @@ brick_2x2_length: 31.8  # mm
 brick_base_height: 19.2  # From bottom to root of the stud, mm
 calibration_color: blue
 
+tcp:
+  # Pose    x  y   z  rx  ry  rz
+  # USE gripper z for the camera and do not add rotations to it
+  gripper: [0, 0, 0.193, 0, 0, 0]
+  camera: [0, -0.0625, 0.193, 0, 0, 0]
+
+
+gripper:
+  # Values represent how closed (0-100%) the gripper is
+  open: 60
+  open_tight: 65  # barely enough room to fit a 2x2 brick at its studs
+  closed: 69
+  force: 55
+
 
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
 

@@ -8,16 +8,10 @@ import json
 
 from legoassembler.vision import MachineVision, NoMatches
 
-GOPEN = 60
-GOPEN_TIGHT = 65
-GCLOSED = 69
-FORCE = 55
-TCP = [0, 0, 0.193, 0, 0, 0]
-TCP_CAM = [0, -0.0625, 0.193, 0, 0, 0]
 
-def teach_platform(rob):
+def teach_platform(rob, gripper, tcp):
 
-    rob.set_tcp(TCP)
+    rob.set_tcp(tcp['gripper'])
     build_area = []
     part_area = []
 
@@ -34,7 +28,7 @@ def teach_platform(rob):
     rob.popup('Hit continue to start guided calibration procedure.', blocking=True)
     rob.popup('Continue to initialize gripper.', blocking=True)
 
-    rob.grip(closed=GOPEN_TIGHT)
+    rob.grip(closed=gripper['open_tight'])
 
     msg = 'Place 2x2 block on one corner of the build platform.' \
               ' Guide the arm to grab the block.'
@@ -74,9 +68,9 @@ def teach_platform(rob):
     return env
 
 
-def preview_taught_platform(rob, calib, travel_height):
+def preview_taught_platform(rob, tcp, calib, travel_height, gripper):
 
-    rob.set_tcp(TCP)
+    rob.set_tcp(tcp['gripper'])
     wait = 0.1
     vel = 0.3
     a = 0.1
@@ -88,7 +82,7 @@ def preview_taught_platform(rob, calib, travel_height):
     rob.movel(pose, v=vel, a=a)
 
     # Open gripper
-    rob.grip(closed=GOPEN)
+    rob.grip(closed=gripper['open'])
 
     pose = deepcopy(poses['build'][0])
     pose[2] += travel_height
@@ -148,9 +142,10 @@ def preview_taught_platform(rob, calib, travel_height):
     print('Preview finished!')
 
 
-def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
+def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
+                     brick2x2_side_mm, color):
 
-    rob.set_tcp(TCP)
+    rob.set_tcp(tcp['gripper'])
     wait = 0.1
     vel = 1.3
     a = 0.4
@@ -165,7 +160,7 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
     time.sleep(wait)
 
     # Open gripper
-    rob.grip(closed=GOPEN)
+    rob.grip(closed=gripper['open'])
 
     pose = deepcopy(test_pose)
     pose[2] += travel_height
@@ -175,7 +170,7 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
     time.sleep(wait * 2)
     rob.movel(pose, v=vel, a=a)
 
-    rob.set_tcp(TCP_CAM)
+    rob.set_tcp(tcp['camera'])
     rob.movej(pose, v=vel, a=a)
     mv.calibrate(brick2x2_side_mm, color)  # Take calibration image
 
@@ -215,8 +210,8 @@ def calibrate_camera(rob, mv, travel_height, calib, brick2x2_side_mm, color):
         time.sleep(wait)
         return pose_
 
-    rob.set_tcp(TCP)
-    _imaging(False, -TCP_CAM[0], -TCP_CAM[1])
+    rob.set_tcp(tcp['gripper'])
+    _imaging(False, -tcp['camera'][0], -tcp['camera'][1])
     time.sleep(wait)
 
     # Touch the match
@@ -263,7 +258,7 @@ def wiggle(robot, max_mm, target_pose):
     robot.movej(tcp, v=0.1, a=0.05)
 
 
-def build(rob, mv, platf_calib, plan, travel_height, unit_brick_dims,
+def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_dims,
           load_state=False):
     wait = 0.0
     vel = 1.5
@@ -283,7 +278,7 @@ def build(rob, mv, platf_calib, plan, travel_height, unit_brick_dims,
     plan = state['plan']
 
     rob.popup('Continue to start building', blocking=True)
-    rob.set_tcp(TCP)
+    rob.set_tcp(tcp['gripper'])
 
     imaging_area = _midpoint_of_poses(platf_calib['taught_poses']['part'][0],
                                       platf_calib['taught_poses']['part'][1])
@@ -313,13 +308,13 @@ def build(rob, mv, platf_calib, plan, travel_height, unit_brick_dims,
         else:
             size = (2, 4)
         # Go above imaging area
-        rob.set_tcp(TCP_CAM)
+        rob.set_tcp(tcp['camera'])
         pose = deepcopy(imaging_area)
         pose[2] += travel_height
         rob.movej(pose, v=vel, a=a)
 
         # Open gripper
-        rob.grip(closed=GOPEN)
+        rob.grip(closed=gripper['open'])
 
         match = {'x': 255, 'y': 255, 'angle': 255}
         while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
@@ -366,8 +361,8 @@ def build(rob, mv, platf_calib, plan, travel_height, unit_brick_dims,
             rob.movej(pose_, v=vel, a=a, relative=True)
             time.sleep(wait)
 
-        rob.set_tcp(TCP)
-        _imaging(False, -TCP_CAM[0], -TCP_CAM[1])
+        rob.set_tcp(tcp['gripper'])
+        _imaging(False, -tcp['camera'][0], -tcp['camera'][1])
         time.sleep(wait)
 
         # Grab the match
@@ -375,7 +370,7 @@ def build(rob, mv, platf_calib, plan, travel_height, unit_brick_dims,
         pose[2] = imaging_area[2] + unit_brick_dims['base_height'] * 1.05
         rob.movel(pose, v=vel, a=a)
         rob.force_mode_tool_z(25, 0.5)
-        rob.grip(closed=GCLOSED, force=FORCE)
+        rob.grip(closed=gripper['closed'], force=gripper['force'])
         pose[2] = travel_height
         rob.movel(pose, v=vel, a=a)
         time.sleep(wait)
@@ -383,7 +378,7 @@ def build(rob, mv, platf_calib, plan, travel_height, unit_brick_dims,
         _place_on_platform(rob, platf_calib['taught_poses']['build'],
                            target, travel_height, vel, a, unit_brick_dims)
 
-        rob.grip(closed=GOPEN)
+        rob.grip(closed=gripper['open'])
 
         # Save state
         state['current_index'] = i + 1
