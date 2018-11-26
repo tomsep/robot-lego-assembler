@@ -412,7 +412,13 @@ def build(rob, mv, platf_calib, plan, travel_height, load_state=False):
         match = {'x': 255, 'y': 255, 'angle': 255}
         while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
             try:
-                match = mv.find_brick(target[4], size, margin=0.2, draw=True)
+                if target[3] != 'parallel_to_y':
+                    # Turn to grab the brick in alternative direction
+                    use_max_edge = True
+                else:
+                    use_max_edge = False
+                match = mv.find_brick(target[4], size, margin=0.2,
+                                      use_max_edge=use_max_edge, draw=True)
             except NoMatches:
                 continue
 
