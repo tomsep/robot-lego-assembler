@@ -324,10 +324,18 @@ def test_camera(rob, mv, travel_height, calib, color):
 def place_block(rob, target_z, target_pose, max_mm=1.5):
 
     force = 37  # Newtons
-    rob.force_mode_tool_z(force, 2)
-    while abs(rob.get_tcp()[2] - target_z) > max_mm / 1000:
-        wiggle(rob, 1, target_pose)
-        rob.force_mode_tool_z(force, 1)
+    factor = 1.2
+    rob.force_mode_tool_z(force / factor, 1)
+    while True:
+        deviation = abs(rob.get_tcp()[2] - target_z)
+        if deviation <= max_mm / 1000:
+            break
+
+        elif deviation > 7 / 1000:
+            wiggle(rob, 0.2, target_pose)
+            rob.force_mode_tool_z(force / factor, 1)
+        else:
+            rob.force_mode_tool_z(force, 1)
 
 
 def wiggle(robot, max_mm, target_pose):
