@@ -4,12 +4,19 @@ import yaml
 import socket
 from warnings import warn
 import os
+import sys
 
 from legoassembler.communication import Client
 import legoassembler.build
 from legoassembler.robot import Robot
 from legoassembler.vision import MachineVision
 from legoassembler.lego import load_file, coordinates, number_of_bricks, printer
+
+
+# Python2 'raw_input' is equal to python3 'input'
+if sys.version_info[0] == 2:
+    input = raw_input
+
 
 def run(cfg):
     """ Run main app
