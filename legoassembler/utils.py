@@ -43,7 +43,7 @@ def rectangle_angle_2d(points):
                          'are orthogonal or the order of points '
                          'is incorrect.')
 
-    # Compute unit vectors for all edges
+    # Compute norms for all edges
     edges = np.roll(points, -1, axis=0) - points
     norms = np.transpose(np.linalg.norm(edges, axis=1))[:, np.newaxis]
 
