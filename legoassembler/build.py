@@ -596,7 +596,7 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
     # Go just above the targetz
     target_z = target_pose[2]
     pose = deepcopy(target_pose)
-    pose[2] = target_z + 0.003
+    pose[2] = target_z + 0.022
     rob.movel(pose, v=vel, a=a)
 
     place_block(rob, target_z=target_z, target_pose=target_pose)
