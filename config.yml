@@ -19,7 +19,10 @@ network:
     ip: 192.168.1.218
     port: 9002
 
-brick_2x2_length: 31.8
+brick_2x2_length: 31.8  # mm
+brick_base_height: 19.2  # From bottom to root of the stud, mm
+calibration_color: blue
+
 
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
 

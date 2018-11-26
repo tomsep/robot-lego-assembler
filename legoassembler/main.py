@@ -74,7 +74,10 @@ def _calibrate_camera(cfg, rob, mv, platf_calib, load):
             #_upload_scipt(cfg, 'calibrate_camera', ur_client)
             #host.accept()
             travel_height = cfg['environment']['travel_height']
-            legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib, 32, 'blue')
+            brick_2x2_length = cfg['brick_2x2_length']
+            color = cfg['calibration_color']
+            legoassembler.build.calibrate_camera(rob, mv, travel_height, platf_calib,
+                                                 brick_2x2_length, color)
             mv.save_calibration(cfg['calibration_data']['camera'])
 
 
@@ -129,13 +132,6 @@ def _load_build_plan(fname):
     lego_file = load_file(fname)
     plans = coordinates(lego_file)
     legos = number_of_bricks(plans)
-
-    # make into millimeters
-    mmfact = 1
-    mmfact_h = 19.2
-    for plan in plans:
-        plan[:3] = [(plan[0] - 1) * mmfact_h, plan[1] * mmfact, plan[2] * mmfact]
-
     printer(legos, plans)
 
     return plans
@@ -146,5 +142,7 @@ def _build(cfg, rob, mv, platf_calib, load_state):
     fname = cfg['lego_model_path']
     plan = _load_build_plan(fname)
     travel_h = cfg['environment']['travel_height']
-    ideal_side_len = cfg['brick_2x2_length']
-    legoassembler.build.build(rob, mv, platf_calib, plan, travel_h, ideal_side_len, load_state)
+    unit_brick_dims = {'side': cfg['brick_2x2_length'] / 1000,
+                       'base_height': cfg['brick_base_height'] / 1000}
+
+    legoassembler.build.build(rob, mv, platf_calib, plan, travel_h, unit_brick_dims, load_state)
