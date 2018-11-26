@@ -388,7 +388,10 @@ def build(rob, mv, platf_calib, plan, travel_height, load_state=False):
     for i in range(state['current_index'], len(state['plan'])):
 
         target = plan[i]
-
+        if target[5] == '2x2':
+            size = (2, 2)
+        else:
+            size = (2, 4)
         # Go above imaging area
         rob.set_tcp(TCP_CAM)
         pose = deepcopy(imaging_area)
@@ -401,7 +404,7 @@ def build(rob, mv, platf_calib, plan, travel_height, load_state=False):
         match = {'x': 255, 'y': 255, 'angle': 255}
         while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
             try:
-                match = mv.find_brick(target[4], (2, 2), margin=0.2, draw=True)
+                match = mv.find_brick(target[4], size, margin=0.2, draw=True)
             except NoMatches:
                 continue
 
@@ -412,6 +415,13 @@ def build(rob, mv, platf_calib, plan, travel_height, load_state=False):
             rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
             p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
             p2 = [xoff, yoff, 0] + rob.rotvec2rpy([0, 0, 0])
+
+            # If square use the closest angle
+            if size[0] == size[1]:
+                if angle_off > radians(45):
+                    angle_off -= radians(90)
+                elif angle_off < radians(-45):
+                    angle_off += radians(90)
             pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, angle_off]
 
             curr_pose_xy = rob.get_tcp()[:2]
@@ -445,8 +455,12 @@ def build(rob, mv, platf_calib, plan, travel_height, load_state=False):
         time.sleep(wait)
 
         # Place
+        if target[3] != 'parallel_to_y':
+            turn = radians(-90)
+        else:
+            turn = 0
         _place_on_platform(rob, platf_calib['taught_poses']['build'],
-                           target, travel_height, vel, a)
+                           target, travel_height, vel, a, turn)
 
         rob.grip(closed=GOPEN)
 
@@ -559,7 +573,7 @@ def pickup_demo(rob, mv, travel_height, platf_calib, colors):
         rob.movej(pose, v=vel, a=a)
         rob.grip(closed=GOPEN)
 
-def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
+def _place_on_platform(rob, build_platf, target, travel_height, vel, a, turn=0):
     # Use build_platf[0] as origin of the platform. X and Y towards corner [1]
     x_sign, y_sign = (1, 1)
     if build_platf[0][0] - build_platf[1][0] > 0:
@@ -577,12 +591,13 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a):
     # Platform coords to global
     rpy_ = rob.rotvec2rpy(origin_pose[3:])  # rpy = [roll, pitch, yaw]
     p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
-    p2 = [target[1] / 1000, target[2] / 1000, 0] + rob.rotvec2rpy([0, 0, 0])
+    p2 = [target[1] / 1000, target[2] / 1000, 0] + rob.rotvec2rpy([0, 0, radians(90)])
     target_rel_pose = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
     target_pose = deepcopy(origin_pose)
     target_pose[0] += target_rel_pose[0]
     target_pose[1] += target_rel_pose[1]
     target_pose[2] += target[0] / 1000
+    target_pose = rob.pose_trans(target_pose, [0, 0, 0] + rob.rpy2rotvec([0, 0, turn]))
 
     # target_pose = deepcopy(origin_pose)
     # target_pose[0] += target[1] * x_sign / 1000

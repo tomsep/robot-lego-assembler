@@ -7,6 +7,8 @@ import json
 import yaml
 from copy import deepcopy
 
+from legoassembler.utils import rectangle_angle_2d, rectangle_center_2d
+
 
 class MachineVision:
 
@@ -123,20 +125,6 @@ class MachineVision:
                                                                   as_mm=True)
             brick['y_mm'] *= -1  # Change y axis direction
             brick['ratio'] = brick['dimensions'][0] / brick['dimensions'][1]
-
-            angle = brick['angle']  # + math.radians(90)  # Angle w.r.t y
-
-            if angle < math.radians(-45):
-                angle = math.radians(90) + angle
-                print('here')
-
-            # Angle should always be between (-90, +90]
-            if angle > math.degrees(90):
-                angle -= math.degrees(180)
-            elif angle <= math.degrees(-90):
-                angle += math.degrees(180)
-
-            brick['angle'] = angle
 
         target_ratio = size[0] / size[1]
         bricks = filter(lambda x: abs(target_ratio - x['ratio']) <= margin, bricks)
@@ -348,10 +336,15 @@ def _bounding_rectangles(img, contours, draw=True):
         minrect = cv.minAreaRect(contour)
         points = cv.boxPoints(minrect)
 
-        cx, cy = _rectangle_center(points)
+        try:
+            cx, cy = rectangle_center_2d(points)
+            cx, cy = int(cx), int(cy)
+            angle = rectangle_angle_2d(points)
+        except ValueError:
+            # min rect has 0 len edges
+            continue
         area = _rectangle_area(points)
 
-        angle = math.radians(minrect[2])
         dims = _rectangle_dimensions(points)
 
         rect = {'cx': cx, 'cy': cy, 'area': area,
