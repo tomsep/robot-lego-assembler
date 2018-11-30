@@ -227,7 +227,7 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
     print('Camera calibration finished!')
 
 
-def place_block(rob, target_z, target_pose, max_mm=1.5):
+def _place_block(rob, target_z, target_pose, max_mm=1.5):
 
     force = 37  # Newtons
     factor = 1.2
@@ -238,13 +238,13 @@ def place_block(rob, target_z, target_pose, max_mm=1.5):
             break
 
         elif deviation > 7 / 1000:
-            wiggle(rob, 0.2, target_pose)
+            _wiggle(rob, 0.2, target_pose)
             rob.force_mode_tool_z(force / factor, 1)
         else:
             rob.force_mode_tool_z(force, 1)
 
 
-def wiggle(robot, max_mm, target_pose):
+def _wiggle(robot, max_mm, target_pose):
     x, y = np.random.rand(2) * max_mm
     xs, ys = np.random.rand(2)  # random sign
     tcp = deepcopy(target_pose)
@@ -260,6 +260,7 @@ def wiggle(robot, max_mm, target_pose):
 
 def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_dims,
           load_state=False):
+
     wait = 0.0
     vel = 1.5
     a = 0.6 * 2
@@ -274,7 +275,6 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
     else:
         state = {'plan': plan, 'current_index': 0}
 
-
     plan = state['plan']
 
     rob.popup('Continue to start building', blocking=True)
@@ -282,23 +282,10 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
 
     imaging_area = _midpoint_of_poses(platf_calib['taught_poses']['part'][0],
                                       platf_calib['taught_poses']['part'][1])
+    imaging_height = imaging_area[2] + travel_height
 
     # Goto starting height above
-    pose = rob.get_tcp()
-    pose[2] = imaging_area[2] + travel_height
-    rob.movel(pose, v=vel, a=a)
-
-    def _imaging(on_, xoff_, yoff_):
-        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
-        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
-        if on_ is False:
-            xoff_ = -xoff_
-            yoff_ = -yoff_
-        p2 = [xoff_, yoff_, 0] + rob.rotvec2rpy([0, 0, 0])
-        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
-        rob.movej(pose_, v=vel, a=a, relative=True)
-        time.sleep(wait)
-        return pose_
+    _move_to_height(rob, imaging_height, vel, a, movelinear=True)
 
     for i in range(state['current_index'], len(state['plan'])):
 
@@ -361,20 +348,24 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
             rob.movej(pose_, v=vel, a=a, relative=True)
             time.sleep(wait)
 
-        rob.set_tcp(tcp['gripper'])
-        _imaging(False, -tcp['camera'][0], -tcp['camera'][1])
-        time.sleep(wait)
-
-        # Grab the match
+        # Move gripper where the camera is
         pose = rob.get_tcp()
-        pose[2] = imaging_area[2] + unit_brick_dims['base_height'] * 1.05
-        rob.movel(pose, v=vel, a=a)
-        rob.force_mode_tool_z(25, 0.5)
-        rob.grip(closed=gripper['closed'], force=gripper['force'])
-        pose[2] = travel_height
-        rob.movel(pose, v=vel, a=a)
-        time.sleep(wait)
+        rob.set_tcp(tcp['gripper'])
+        rob.movej(pose, v=vel, a=a)
 
+        #  ----Grab the match----
+        # Move just a little above the brick
+        z = imaging_area[2] + unit_brick_dims['base_height'] * 1.05
+        _move_to_height(rob, z, vel, a, movelinear=True)
+
+        # Apply force to go down as much as it goes
+        rob.force_mode_tool_z(25, 0.5)
+
+        # Grip and go back up
+        rob.grip(closed=gripper['closed'], force=gripper['force'])
+        _move_to_height(rob, travel_height, vel, a, movelinear=True)
+
+        # Place on platform
         _place_on_platform(rob, platf_calib['taught_poses']['build'],
                            target, travel_height, vel, a, unit_brick_dims)
 
@@ -385,58 +376,49 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
         with open(state_fname, 'w') as f:
             f.write(json.dumps(state))
 
-        pose = rob.get_tcp()
-        pose[2] = travel_height
-        rob.movel(pose, v=vel, a=a)
+        _move_to_height(rob, travel_height, vel, a, movelinear=True)
 
 
-def _place_on_platform(rob, build_platf, target, travel_height, vel, a, unit_brick_dims,
-                       turn=0):
+def _place_on_platform(rob, build_platf, target, travel_height, vel, a, unit_brick_dims):
 
-    # Use build_platf[0] as origin of the platform. X and Y towards corner [1]
-    x_sign, y_sign = (1, 1)
-    if build_platf[0][0] - build_platf[1][0] > 0:
-        x_sign *= -1
-    if build_platf[0][1] - build_platf[1][1] > 0:
-        y_sign *= -1
-
-    origin_pose = deepcopy(build_platf[0])
-    rpy = rob.rotvec2rpy(origin_pose[3:])
-    points = [x[:2] for x in build_platf]
-    rpy[2] = np.unwrap([rect_angle(points) - radians(180)])[0]
-    rotvec = rob.rpy2rotvec(rpy)
-    origin_pose[3:] = rotvec
-
+    # Get grid step size for the build platform
     corners = np.array(build_platf)[:, :2]
-    x_act, y_act = _actual_step_width(corners, unit_brick_dims['side'])
+    x_step, y_step = _actual_step_width(corners, unit_brick_dims['side'])
 
-    # Platform coords to global
-    rpy_ = rob.rotvec2rpy(origin_pose[3:])  # rpy = [roll, pitch, yaw]
-    p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
-    p2 = [target[1] * x_act, target[2] * y_act, 0] + rob.rotvec2rpy([0, 0, 0])
-    target_rel_pose = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
-    target_pose = deepcopy(origin_pose)
-    target_pose[0] += target_rel_pose[0]
-    target_pose[1] += target_rel_pose[1]
-    target_pose[2] += unit_brick_dims['base_height'] * (target[0] - 1)
-    target_pose = rob.pose_trans(target_pose, [0, 0, 0] + rob.rpy2rotvec([0, 0, turn]))
+    # Build platform origin corner
+    origin = deepcopy(build_platf[0])
+    points = [x[:2] for x in build_platf]
+    platf_angle = rect_angle(points) - radians(180)
+    origin[3:] = rob.rpy2rotvec(rob.rotvec2rpy(origin[3:])[:-1] + [platf_angle])
 
-    # target_pose = deepcopy(origin_pose)
-    # target_pose[0] += target[1] * x_sign / 1000
-    # target_pose[1] += target[2] * y_sign / 1000
-    # target_pose[2] += target[0] / 1000
+    # Compute target point in build platform
+    # TODO: What if platform axis change?
+    p2 = [-target[1] * x_step, target[2] * y_step, 0, 0, 0, 0]
+    pose = rob.pose_trans(origin, p2)
 
-    pose = deepcopy(target_pose)
-    pose[2] = travel_height
-    rob.movej(pose, v=vel, a=a)
+    # move above
+    _move_to_height(rob, travel_height, vel, a, pose)
 
-    # Go just above the targetz
-    target_z = target_pose[2]
-    pose = deepcopy(target_pose)
-    pose[2] = target_z + unit_brick_dims['base_height'] * 1.05
-    rob.movel(pose, v=vel, a=a)
+    # move just above brick
+    target_z = target[0] * unit_brick_dims['base_height']
+    z = target_z + unit_brick_dims['base_height'] * 1.05
+    _move_to_height(rob, z, vel, a, pose, movelinear=True)
 
-    place_block(rob, target_z=target_z, target_pose=target_pose)
+    _place_block(rob, target_z=target_z, target_pose=pose)
+
+
+def _move_to_height(rob, height, vel, a, pose=None, movelinear=False):
+    if pose:
+        pose = deepcopy(pose)
+        pose[2] = height
+    else:
+        pose = rob.get_tcp()
+        pose[2] = height
+
+    if movelinear:
+        rob.movel(pose, v=vel, a=a)
+    else:
+        rob.movej(pose, v=vel, a=a)
 
 
 def _actual_step_width(points, ideal):
