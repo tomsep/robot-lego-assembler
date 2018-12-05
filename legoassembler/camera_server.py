@@ -7,7 +7,7 @@ import io
 from legoassembler.communication import Server
 
 
-def start(ip, port):
+def start(port):
     """ Start a server for serving images
 
     Server is shut when None message is received.
@@ -21,7 +21,8 @@ def start(ip, port):
     # Imported here so that this module can be imported without picamera
     from picamera import PiCamera
 
-    serv = Server(ip, port)
+    serv = Server('0.0.0.0', port)
+    print('Waiting for connection')
     serv.accept()
     # TODO: handle PiCameraValueError (when param out of valid range)
     with PiCamera() as camera:
