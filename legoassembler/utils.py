@@ -161,7 +161,7 @@ def wrap_to_2pi(x):
     if x > 2 * pi:
         return x - np.floor(x / (2 * pi)) * 2 * pi
     elif x < -2 * pi:
-        return x + np.floor(x / (2 * pi)) * 2 * pi
+        return x - np.floor(x / (2 * pi)) * 2 * pi
     else:
         return x
 
