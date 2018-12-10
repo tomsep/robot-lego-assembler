@@ -213,7 +213,7 @@ def _widen_hsv_color_range(color_range, proportion):
     return new_range
 
 
-def color_calibration_from_img(img, widen_prop=0.25, min_prop=0.98, fname='color_definitions.yml'):
+def color_calibration_from_img(img, widen_prop=0.35, min_prop=0.98, fname='color_definitions.yml'):
     """ Do user assisted color calibration
 
     User is instructed to select 4 points within the image. These points specify an area.

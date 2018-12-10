@@ -37,6 +37,9 @@ gripper:
   closed: 69
   force: 55
 
+camera_parameters:
+  iso: 800
+  resolution: [800, 600]
 
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
 

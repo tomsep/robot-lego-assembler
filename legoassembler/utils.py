@@ -1,6 +1,8 @@
 from __future__ import division
 import numpy as np
 from math import radians
+import yaml
+import os
 
 
 def rectangle_angle_2d(points, max_edge=False):
@@ -188,3 +190,33 @@ def wrap_to_half_pi(x):
         return x + pi
     else:
         return x
+
+
+def load_config():
+    """ Load configuration config.yml from current working directory
+
+    File is loaded from current working directory.
+    Also converts file paths (in the conf file) OS independent.
+
+    Returns
+    -------
+    dict
+
+    """
+
+    with open('config.yml', 'r') as f:
+        cfg = yaml.load(f)
+
+    def _replace_separator(entry):
+        # Make path OS independent
+        return entry.replace('/', os.sep).replace('\\', os.sep)
+
+    cfg['grip_def_script'] = _replace_separator(cfg['grip_def_script'])
+
+    cfg['calibration_data']['camera'] = \
+        _replace_separator(cfg['calibration_data']['camera'])
+
+    cfg['calibration_data']['platform'] = \
+        _replace_separator(cfg['calibration_data']['platform'])
+
+    return cfg

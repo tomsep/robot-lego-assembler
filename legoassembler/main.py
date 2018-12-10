@@ -138,7 +138,9 @@ def _mv_setup(cfg, cam_client):
             raise ValueError('Color definition file "{}" exists but is empty. '
                              'Define colors to continue.'.format(col_calib_path))
 
-    mv = MachineVision(cam_client, color_defs, {'iso': 800, 'resolution': [800, 600]})
+    cam_params = cfg['camera_parameters']
+    print('Camera parameters used: {}'.format(cam_params))
+    mv = MachineVision(cam_client, color_defs, cam_params)
 
     cam_calib_path = cfg['calibration_data']['camera']
     if os.path.isfile(cam_calib_path):
