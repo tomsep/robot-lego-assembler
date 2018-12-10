@@ -227,23 +227,6 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
     print('Camera calibration finished!')
 
 
-def _place_block(rob, target_z, target_pose, max_mm=1.5):
-
-    force = 37  # Newtons
-    factor = 1.2
-    rob.force_mode_tool_z(force / factor, 1)
-    while True:
-        deviation = abs(rob.get_tcp()[2] - target_z)
-        if deviation <= max_mm / 1000:
-            break
-
-        elif deviation > 7 / 1000:
-            _wiggle(rob, 0.2, target_pose)
-            rob.force_mode_tool_z(force / factor, 1)
-        else:
-            rob.force_mode_tool_z(force, 1)
-
-
 def _wiggle(robot, max_mm, target_pose):
     x, y = np.random.rand(2) * max_mm
     xs, ys = np.random.rand(2)  # random sign
@@ -355,11 +338,12 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
 
         #  ----Grab the match----
         # Move just a little above the brick
-        z = imaging_area[2] + unit_brick_dims['base_height'] * 1.05
+        z = imaging_area[2] + unit_brick_dims['base_height'] * 1.5
         _move_to_height(rob, z, vel, a, movelinear=True)
 
-        # Apply force to go down as much as it goes
-        rob.force_mode_tool_z(25, 0.5)
+        # Move slower all the way down
+        z = imaging_area[2] + unit_brick_dims['base_height']
+        _move_to_height(rob, z, vel / 2, a / 3, movelinear=True)
 
         # Grip and go back up
         rob.grip(closed=gripper['closed'], force=gripper['force'])
@@ -407,7 +391,8 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a, unit_bri
     z = target_z + unit_brick_dims['base_height'] * 1.05
     _move_to_height(rob, z, vel, a, pose, movelinear=True)
 
-    _place_block(rob, target_z=target_z, target_pose=pose)
+    # Move slower to place
+    _move_to_height(rob, target_z, vel / 2, a / 3, pose, movelinear=True)
 
 
 def _move_to_height(rob, height, vel, a, pose=None, movelinear=False):
