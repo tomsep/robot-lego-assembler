@@ -395,6 +395,9 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a, unit_bri
     # TODO: What if platform axis change?
     p2 = [-target[1] * x_step, target[2] * y_step, 0, 0, 0, 0]
     pose = rob.pose_trans(origin, p2)
+    # Preferred yaw (to prevent rotating too much)
+    preferred_yaw = rob.rotvec2rpy(build_platf[0][3:])[-1]
+    pose = _untangle_rz(rob, pose, preferred_angle=preferred_yaw)
 
     # move above
     _move_to_height(rob, travel_height, vel, a, pose)
@@ -497,3 +500,28 @@ def rect_angle(points):
     # Angle around z w.r.t global x-axis
     angle = atan2(x_vec[1], x_vec[0]) - atan2(0, 1)
     return np.unwrap([angle])[0]
+
+
+def _untangle_rz(rob, pose, preferred_angle):
+    """ Choose closest rz rotation (by adding +180 deg) to preferred_angle
+
+    Parameters
+    ----------
+    rob
+    pose
+    preferred_angle : float
+        Radians -2pi..2pi.
+        Angle RZ to use as basis for choosing whether to add +180 deg or not.
+
+    Returns
+    -------
+
+    """
+
+    rpy = rob.rotvec2rpy(pose[3:])
+    if abs(rpy[2] - preferred_angle) > radians(90):
+        rpy[2] = rpy[2] + radians(180)
+        pose = deepcopy(pose)
+        pose[3:] = rob.rpy2rotvec(rpy)
+    return pose
+
