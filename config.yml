@@ -38,8 +38,10 @@ gripper:
   force: 55
 
 camera_parameters:
-  iso: 800
   resolution: [800, 600]
+  awb_gains: [1.10, 2.32]
+  awb_mode: "off"
+  exposure_mode: "off"
 
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
 
