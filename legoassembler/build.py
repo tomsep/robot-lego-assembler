@@ -149,24 +149,24 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
     wait = 0.1
     vel = 1.3
     a = 0.4
-    test_pose = calib['taught_poses']['build'][0]
+    imaging_area = calib['taught_poses']['build'][0]
 
     rob.popup('Press continue to start camera calibration', blocking=True)
 
     # Goto starting height
     pose = rob.get_tcp()
-    pose[2] = test_pose[2] + travel_height
+    pose[2] = imaging_area[2] + travel_height
     rob.movel(pose, v=vel, a=a)
     time.sleep(wait)
 
     # Open gripper
     rob.grip(closed=gripper['open'])
 
-    pose = deepcopy(test_pose)
+    pose = deepcopy(imaging_area)
     pose[2] += travel_height
     rob.movej(pose, v=vel, a=a)
     time.sleep(wait)
-    rob.movel(test_pose, v=vel, a=a)
+    rob.movel(imaging_area, v=vel, a=a)
     time.sleep(wait * 2)
     rob.movel(pose, v=vel, a=a)
 
@@ -180,43 +180,15 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
     rob.movej(pose, v=vel, a=a, relative=True)
     time.sleep(wait)
 
-    # Find the brick
-    match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
-    print(match)
-    while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
-        xoff = match['x'] / 1000
-        yoff = match['y'] / 1000
-        angle_off = match['angle']
-        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
-        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
-        p2 = [xoff, yoff, 0] + rob.rotvec2rpy([0, 0, 0])
-        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, angle_off]
+    target = [None, None, None, 'parallel_to_x', color, '2x2']
 
-        rob.movej(pose_, v=vel, a=a, relative=True)
-
-        match = mv.find_brick(color, (2, 2), margin=0.2, draw=True)
-        print(match)
-        time.sleep(wait)
-
-    def _imaging(on_, xoff_, yoff_):
-        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
-        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
-        if on_ is False:
-            xoff_ = -xoff_
-            yoff_ = -yoff_
-        p2 = [xoff_, yoff_, 0] + rob.rotvec2rpy([0, 0, 0])
-        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, 0]
-        rob.movej(pose_, v=vel, a=a, relative=True)
-        time.sleep(wait)
-        return pose_
-
-    rob.set_tcp(tcp['gripper'])
-    _imaging(False, -tcp['camera'][0], -tcp['camera'][1])
-    time.sleep(wait)
+    # Find match and move above it
+    _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height, vel, a,
+                            max_diff=0.7)
 
     # Touch the match
     pose = rob.get_tcp()
-    pose[2] = test_pose[2]
+    pose[2] = imaging_area[2]
     rob.movel(pose, v=vel, a=a)
     time.sleep(wait * 2)
     pose[2] = travel_height
@@ -270,71 +242,20 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
     # Goto starting height above
     _move_to_height(rob, imaging_height, vel, a, movelinear=True)
 
+
+    allowed_pickup_area = [platf_calib['taught_poses']['part'][0],
+                           platf_calib['taught_poses']['part'][1]]
+
     for i in range(state['current_index'], len(state['plan'])):
 
         target = plan[i]
-        if target[5] == '2x2':
-            size = (2, 2)
-        else:
-            size = (2, 4)
-        # Go above imaging area
-        rob.set_tcp(tcp['camera'])
-        pose = deepcopy(imaging_area)
-        pose[2] += travel_height
-        rob.movej(pose, v=vel, a=a)
 
         # Open gripper
         rob.grip(closed=gripper['open'])
 
-        match = {'x': 255, 'y': 255, 'angle': 255}
-        while abs(match['x']) > 0.7 or abs(match['y']) > 0.7:
-            try:
-                if target[3] != 'parallel_to_y':
-                    # Turn to grab the brick in alternative direction
-                    use_max_edge = True
-                else:
-                    use_max_edge = False
-                match = mv.find_brick(target[4], size, margin=0.2,
-                                      use_max_edge=use_max_edge, draw=True)
-            except NoMatches:
-                continue
-
-            print(match)
-            xoff = match['x'] / 1000
-            yoff = match['y'] / 1000
-            angle_off = match['angle']
-            rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
-            p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
-            p2 = [xoff, yoff, 0] + rob.rotvec2rpy([0, 0, 0])
-
-            # If square use the closest angle
-            if size[0] == size[1]:
-                if angle_off > radians(45):
-                    angle_off -= radians(90)
-                elif angle_off < radians(-45):
-                    angle_off += radians(90)
-            pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, angle_off]
-
-            curr_pose_xy = rob.get_tcp()[:2]
-            curr_pose_xy[0] += pose_[0]
-            curr_pose_xy[1] += pose_[1]
-
-            is_it = _is_within_rect(curr_pose_xy, platf_calib['taught_poses']['part'][0],
-                                      platf_calib['taught_poses']['part'][1])
-            if not is_it:
-                # Go back to above imaging area
-                pose = deepcopy(imaging_area)
-                pose[2] += travel_height
-                rob.movej(pose, v=vel, a=a)
-                continue
-
-            rob.movej(pose_, v=vel, a=a, relative=True)
-            time.sleep(wait)
-
-        # Move gripper where the camera is
-        pose = rob.get_tcp()
-        rob.set_tcp(tcp['gripper'])
-        rob.movej(pose, v=vel, a=a)
+        # Find match and move above it
+        _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height, vel,
+                                a, max_diff=0.7, allowed_rect_area=allowed_pickup_area)
 
         #  ----Grab the match----
         # Move just a little above the brick
@@ -510,3 +431,76 @@ def _untangle_rz(rob, pose, preferred_angle):
         pose[3:] = rob.rpy2rotvec(rpy)
     return pose
 
+
+def _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height,
+                            vel, a, max_diff=0.7, allowed_rect_area=None):
+    """ Move gripper above brick that matches best the target given
+
+    At the end of the function TCP is set back to 'gripper'.
+    Returns None when above the match with maximum  of 'max_diff' deviation.
+
+    """
+
+    # Go above imaging area
+    rob.set_tcp(tcp['camera'])
+    pose = deepcopy(imaging_area)
+    pose[2] += travel_height
+    rob.movej(pose, v=vel, a=a)
+
+    if target[5] == '2x2':
+        size = (2, 2)
+    else:
+        size = (2, 4)
+
+    match = {'x': 255, 'y': 255, 'angle': 255}
+    while abs(match['x']) > max_diff or abs(match['y']) > max_diff:
+        try:
+            if target[3] != 'parallel_to_y':
+                # Turn to grab the brick in alternative direction
+                use_max_edge = True
+            else:
+                use_max_edge = False
+            match = mv.find_brick(target[4], size, margin=0.2,
+                                  use_max_edge=use_max_edge, draw=True)
+        except NoMatches:
+            continue
+
+        print(match)
+        xoff = match['x'] / 1000
+        yoff = match['y'] / 1000
+        angle_off = match['angle']
+        rpy_ = rob.rotvec2rpy(rob.get_tcp()[3:])  # rpy = [roll, pitch, yaw]
+        p1 = [0, 0, 0] + rob.rotvec2rpy([0, 0, rpy_[2] - radians(180)])
+        p2 = [xoff, yoff, 0] + rob.rotvec2rpy([0, 0, 0])
+
+        # If square use the closest angle
+        if size[0] == size[1]:
+            if angle_off > radians(45):
+                angle_off -= radians(90)
+            elif angle_off < radians(-45):
+                angle_off += radians(90)
+        pose_ = rob.pose_trans(p1, p2)[:3] + [0, 0, angle_off]
+
+        curr_pose_xy = rob.get_tcp()[:2]
+        curr_pose_xy[0] += pose_[0]
+        curr_pose_xy[1] += pose_[1]
+
+        if allowed_rect_area:
+
+            is_it = _is_within_rect(curr_pose_xy, allowed_rect_area[0],
+                                    allowed_rect_area[1])
+            if not is_it:
+                # Go back to above imaging area
+                pose = deepcopy(imaging_area)
+                pose[2] += travel_height
+                rob.movej(pose, v=vel, a=a)
+                continue
+
+        rob.movej(pose_, v=vel, a=a, relative=True)
+
+    # Move gripper where the camera is
+    pose = rob.get_tcp()
+    rob.set_tcp(tcp['gripper'])
+    rob.movej(pose, v=vel, a=a)
+
+    return
