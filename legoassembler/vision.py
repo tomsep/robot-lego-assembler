@@ -16,6 +16,7 @@ class MachineVision:
         self.client = client
         self.cam_params = cam_params
         self.colors = color_defs
+        self._is_calibrated = False
 
     def calibrate(self, side_mm, color, draw=True):
         """ Gathers camera calibration info from a still picture of a square brick
@@ -58,6 +59,8 @@ class MachineVision:
 
         self.tcp_xy = (brick['cx'], brick['cy'])
 
+        self._is_calibrated = True
+
     def save_calibration(self, fname):
         data = {'pixels_in_mm': self.pixels_in_mm,
                 'tcp_xy': self.tcp_xy}
@@ -70,6 +73,8 @@ class MachineVision:
 
         self.pixels_in_mm = data['pixels_in_mm']
         self.tcp_xy = data['tcp_xy']
+
+        self._is_calibrated = True
 
     def find_brick(self, color, size, margin=0.2, use_max_edge=False, draw=True):
         """ Localize brick with best dimension match and specified color
@@ -107,6 +112,10 @@ class MachineVision:
             If no brick found within given margin or error.
 
         """
+
+        if not self._is_calibrated:
+            raise ValueError('Camera has not been calibrated or '
+                             'no calibration has been loaded.')
 
         img = remote_capture(self.client, self.cam_params)
         bricks = _find_bricks_of_color(img, self.colors[color], use_max_edge, draw)

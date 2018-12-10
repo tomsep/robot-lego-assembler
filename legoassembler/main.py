@@ -45,10 +45,7 @@ def run(cfg):
         _preview_taught_platform(cfg, rob, platform_calib)
 
     if input('Calibrate camera? [Y/n]: ') == 'Y':
-        load = False
-    else:
-        load = True
-    _calibrate_camera(cfg, rob, mv, platform_calib, load)
+        _calibrate_camera(cfg, rob, mv, platform_calib)
 
     if input('Start building? [Y/n]: ') == 'Y':
 
@@ -61,35 +58,31 @@ def run(cfg):
 
 def _teach_platform(cfg, rob, load):
 
+    path = cfg['calibration_data']['platform']
     if load:
-        with open(cfg['calibration_data']['platform'], 'r') as f:
+        with open(path, 'r') as f:
             calib = yaml.load(f)
+            if calib is None:
+                raise ValueError('Platform calibration "{}" is empty.'.format(path))
     else:
-        with open(cfg['calibration_data']['platform'], 'w') as f:
-            gripper = cfg['gripper']
-            tcp = cfg['tcp']
-            calib = legoassembler.build.teach_platform(rob, gripper, tcp)
+        gripper = cfg['gripper']
+        tcp = cfg['tcp']
+        calib = legoassembler.build.teach_platform(rob, gripper, tcp)
+        with open(path, 'w') as f:
             f.write(yaml.dump(calib))
     return calib
 
 
-def _calibrate_camera(cfg, rob, mv, platf_calib, load):
+def _calibrate_camera(cfg, rob, mv, platf_calib):
 
-    if load:
-        with open(cfg['calibration_data']['camera'], 'r') as f:
-            calib = yaml.load(f)
-    else:
-        with open(cfg['calibration_data']['camera'], 'w') as f:
-            #_upload_scipt(cfg, 'calibrate_camera', ur_client)
-            #host.accept()
-            travel_height = cfg['environment']['travel_height']
-            brick_2x2_length = cfg['brick_2x2_length']
-            color = cfg['calibration_color']
-            gripper = cfg['gripper']
-            tcp = cfg['tcp']
-            legoassembler.build.calibrate_camera(rob, mv, gripper, tcp, travel_height,
-                                                 platf_calib, brick_2x2_length, color)
-            mv.save_calibration(cfg['calibration_data']['camera'])
+    travel_height = cfg['environment']['travel_height']
+    brick_2x2_length = cfg['brick_2x2_length']
+    color = cfg['calibration_color']
+    gripper = cfg['gripper']
+    tcp = cfg['tcp']
+    legoassembler.build.calibrate_camera(rob, mv, gripper, tcp, travel_height,
+                                         platf_calib, brick_2x2_length, color)
+    mv.save_calibration(cfg['calibration_data']['camera'])
 
 
 def _preview_taught_platform(cfg, rob, calib):
@@ -134,13 +127,22 @@ def _connect_to_camera_client(cfg):
 def _mv_setup(cfg, cam_client):
 
     # load color definitions
-    with open(cfg['calibration_data']['colors'], 'r') as f:
+    col_calib_path = cfg['calibration_data']['colors']
+    if not os.path.isfile(cfg['calibration_data']['colors']):
+        raise ValueError('Color definitions file "{}" does not exist. '
+                         'Define colors to continue.'.format(col_calib_path))
+
+    with open(col_calib_path, 'r') as f:
         color_defs = yaml.safe_load(f.read())
+        if color_defs is None:
+            raise ValueError('Color definition file "{}" exists but is empty. '
+                             'Define colors to continue.'.format(col_calib_path))
 
     mv = MachineVision(cam_client, color_defs, {'iso': 800, 'resolution': [800, 600]})
-    fpath = cfg['calibration_data']['camera']
-    if os.path.isfile(fpath):
-        mv.load_calibration(cfg['calibration_data']['camera'])
+
+    cam_calib_path = cfg['calibration_data']['camera']
+    if os.path.isfile(cam_calib_path):
+        mv.load_calibration(cam_calib_path)
     return mv
 
 
