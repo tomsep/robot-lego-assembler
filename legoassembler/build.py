@@ -400,7 +400,7 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a, unit_bri
     _move_to_height(rob, travel_height, vel, a, pose)
 
     # move just above brick
-    target_z = target[0] * unit_brick_dims['base_height']
+    target_z = origin[2] + (target[0] - 1) * unit_brick_dims['base_height']
     z = target_z + unit_brick_dims['base_height'] * 1.05
     _move_to_height(rob, z, vel, a, pose, movelinear=True)
 
