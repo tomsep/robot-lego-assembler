@@ -1,8 +1,8 @@
-Robot Lego Assembler enables Universal Robot 5 to build Lego structures using affordable machine vision solution (Raspberry Pi and OpenCV 3). [Demonstration video.](https://www.youtube.com/watch?v=iTxzYD6GYOc&feature=youtu.be) 
+Robot Lego Assembler enables Universal Robot 5 to build Lego structures using affordable machine vision solution (Raspberry Pi and OpenCV 3). [Demonstration video.](https://www.youtube.com/watch?v=iTxzYD6GYOc&feature=youtu.be) This project uses Python 2.7.
 
 
 
-It provides:
+**It provides:**
 
 * Building a structure using LDraw (.ldr) model as reference
 * Rectangular brick detection using machine vision (OpenCV 3)
@@ -16,7 +16,11 @@ It provides:
 
 
 
-Group members:
+See *3dmodels* folder for camera fixture model files (.stl) and [Thingiverse](https://www.thingiverse.com/thing:2539269) for Raspberry Pi 3 casing. 
+
+
+
+**Group members:**
 
 * Tomi Sepponen
 * Julius Linkinen
