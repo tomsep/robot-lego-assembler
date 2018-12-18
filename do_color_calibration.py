@@ -1,3 +1,5 @@
+""" Starts user assisted color calibration procedure. """
+
 from __future__ import division, print_function
 import sys
 

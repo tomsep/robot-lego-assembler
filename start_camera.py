@@ -1,3 +1,6 @@
+""" Main entry for starting the camera server """
+
+from __future__ import division, print_function
 import struct
 import socket
 import yaml

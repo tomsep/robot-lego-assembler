@@ -19,8 +19,9 @@ if sys.version_info[0] == 2:
 
 
 def run(cfg):
-    """ Run main app
+    """ Run main app. Prompts Y/n questions about which subprogram to run.
     """
+
     cam_client = _connect_to_camera_client(cfg)
     mv = _mv_setup(cfg, cam_client) # Machine vision
 
@@ -100,10 +101,6 @@ def _connect_to_camera_client(cfg):
     Allows program to continue even if connection fails to open. In such case
     a warning is printed.
 
-    Parameters
-    ----------
-    cfg : dict
-
     Returns
     -------
     Client
@@ -125,6 +122,21 @@ def _connect_to_camera_client(cfg):
 
 
 def _mv_setup(cfg, cam_client):
+    """ Setup and return MachineVision object
+
+    Loads color calibration file (must exist) and camera calibration (if exists).
+
+    Parameters
+    ----------
+    cfg : dict
+    cam_client : Client
+        Client used for connecting to the camera.
+
+    Returns
+    -------
+    MachineVision
+
+    """
 
     # load color definitions
     col_calib_path = cfg['calibration_data']['colors']

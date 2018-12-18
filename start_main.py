@@ -1,3 +1,5 @@
+""" Main entry of the program."""
+
 from __future__ import division
 
 from legoassembler.main import run

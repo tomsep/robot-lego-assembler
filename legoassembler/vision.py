@@ -21,7 +21,7 @@ class MachineVision:
     def calibrate(self, side_mm, color, draw=True):
         """ Gathers camera calibration info from a still picture of a square brick
 
-        Captures an image and finds the best square dimension match brick of color 'red'.
+        Captures an image and finds the best square dimension match brick of 'color'.
             * Computes pixel to mm conversion.
             * Finds TCP (Tool Center Point) in the image's coordinate system.
 
@@ -87,7 +87,7 @@ class MachineVision:
         size : array-like [float, float]
             Width and length dimensions of the brick to find.
         margin : float
-            How much the match may differ at most. Ex. 0.2 == 20%.
+            How much the match may differ at most before being invalid. Ex. 0.2 == 20%.
         draw : bool
             If the visualizations should be drawn.
 
@@ -166,18 +166,24 @@ class NoMatches(Exception):
 
 
 def remote_capture(client, cam_params):
-    """ Remotely capture image
+    """ Remotely capture color image
 
     Parameters
     ----------
     client
-    cam_params
+    cam_params : dict
+        Parameters for the camera. Parameter name must match the attribute name
+        that PiCamera defines. See PiCamera documentation https://picamera.readthedocs.io
+
+        For example to set resolution and iso values the dict would look like
+        {'resolution': (800, 600), 'iso': 500}
 
     Returns
     -------
-    ???
+    numpy.ndarray
+        Color image as an numpy array.
+
     """
-    # TODO: docstring
 
     client.send(json.dumps(cam_params))
     img_str = client.recv()
@@ -193,13 +199,7 @@ def save_img(img, fname):
 
 
 def _find_bricks_of_color(img, color, use_max_edge, draw=True):
-    """ Find all bricks of certain color
-
-    Parameters
-    ----------
-    img
-    color
-    draw
+    """ Find all objects of certain color
 
     Returns
     -------
@@ -284,16 +284,15 @@ def _mask_by_color(img, color, draw=True):
 def _find_contours(mask, draw_on=None):
     """ Find countours from binary image
 
-    Parameters
-    ----------
-    mask
-    img
-    draw
+    Not compatible with OpenCV 2 without small modification.
 
     Returns
     -------
+    list
 
     """
+
+    # CV2 would return only two values, not 3.
     _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
 
     if draw_on is not None:
@@ -308,7 +307,7 @@ def _find_contours(mask, draw_on=None):
 
 def _rectangle_area(points):
     """ Area of an rectangle
-    Assumes points are in order.
+    Assumes points are in sequential order.
 
     Returns
     -------
@@ -324,16 +323,6 @@ def _rectangle_area(points):
 
 def _bounding_rectangles(img, contours, use_max_edge=False, draw=True):
     """ Fit minimum bounding rectangles to contours
-
-    Parameters
-    ----------
-    img
-    contours
-    draw
-
-    Returns
-    -------
-
     """
 
     rects = []
@@ -425,12 +414,9 @@ def _filter_by_area(bricks, area, margin):
     Parameters
     ----------
     bricks
-    area
+    area : float
     margin : float
         Ex. 0.1 = 10% margin of error.
-
-    Returns
-    -------
 
     """
 
@@ -483,6 +469,12 @@ def _rectangle_dimensions(points):
 
 
 def _best_rect_ratio_match(bricks, size, margin):
+    """ Sort and filter list of bricks based on target ration and margin
+
+    'margin' determines how easily a brick passes filtering. Results are sorted
+    from best matching to worst before returning the list.
+
+    """
 
     def _ratio(_size):
         if _size[1] == 0:

@@ -10,6 +10,25 @@ from legoassembler.vision import MachineVision, NoMatches
 
 
 def teach_platform(rob, gripper, tcp):
+    """ Teach platform procedure.
+
+    Poses taught are leveled so that the all the poses' z axis' are orthogonal
+    to the table that is assumed to be orthogonal to the global z axis.
+
+    Parameters
+    ----------
+    rob : Robot
+    gripper : dict
+    tcp : dict
+
+    Returns
+    -------
+    dict
+        Taught poses as dictionary. build_area has 4 corner poses and part_area 2 corners,
+        i.e. list of lengths 4 and 2.
+        {'taught_poses': {'build': build_area, 'part': part_area}}
+
+    """
 
     rob.set_tcp(tcp['gripper'])
     build_area = []
@@ -69,6 +88,17 @@ def teach_platform(rob, gripper, tcp):
 
 
 def preview_taught_platform(rob, tcp, calib, travel_height, gripper):
+    """ Run the robot slowly through all taught poses.
+
+    Parameters
+    ----------
+    rob : Robot
+    tcp : dict
+    calib : dict
+    travel_height : float
+    gripper : dict
+
+    """
 
     rob.set_tcp(tcp['gripper'])
     wait = 0.1
@@ -144,6 +174,31 @@ def preview_taught_platform(rob, tcp, calib, travel_height, gripper):
 
 def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
                      brick2x2_side_mm, color):
+    """ Calibrates MachineVision object by imaging a 2x2 brick.
+
+    Calibration brick's position is assumed to be the first taught build platform
+    pose.
+
+    1. Touch the origin pose (first calibrated corner).
+    2. Take picture for calibration.
+    3. Move a bit aside.
+    4. Test calibration by trying to guide the arm back to the calibration brick
+        using only machine vision.
+
+    Parameters
+    ----------
+    rob : Robot
+    mv : MachineVision
+    gripper : dict
+    tcp : dict
+    travel_height : float
+    calib : dict
+    brick2x2_side_mm : float
+        Ideal side length of the 2x2 brick.
+    color : str
+        Name of the color used for calibration brick.
+
+    """
 
     rob.set_tcp(tcp['gripper'])
     wait = 0.1
@@ -199,22 +254,38 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
     print('Camera calibration finished!')
 
 
-def _wiggle(robot, max_mm, target_pose):
-    x, y = np.random.rand(2) * max_mm
-    xs, ys = np.random.rand(2)  # random sign
-    tcp = deepcopy(target_pose)
-    if xs > 0.5:
-        x *= -1
-    if ys > 0.5:
-        y *= -1
-    tcp[0] += x / 1000
-    tcp[1] += y / 1000
-    tcp[2] = robot.get_tcp()[2]
-    robot.movej(tcp, v=0.1, a=0.05)
-
 
 def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_dims,
           load_state=False):
+    """ Build a structure based on list of instructions.
+
+    Instrutions are expected to be a list
+    [float, float, float, str, str, str]  # types
+    [z, x, y, brick_orientation, color_name, size]  # value names
+    where z, x and y are width units (1 unit := one DUPLO stud) that are later converted
+    to millimeters using 'unit_brick_dims'. Brick orientation is a string 'parallel_to_x'
+    or 'parallel_to_y', and color_name is name of the color e.g. "red". Size is
+    the brick's size e.g. "2x2" or "2x4".
+
+    A progress state file is saved and updated after each placed brick. The state can
+    be loaded later if for example the system crashes.
+
+
+    Parameters
+    ----------
+    rob : Robot
+    mv : MachineVision
+    gripper : dict
+    tcp : dict
+    platf_calib : dict
+    plan : list
+        Build plan as a list of instructions.
+    travel_height : float
+    unit_brick_dims : dict
+    load_state : bool
+        If previous state should be load from disk.
+
+    """
 
     wait = 0.0
     vel = 1.5
@@ -331,6 +402,18 @@ def _move_to_height(rob, height, vel, a, pose=None, movelinear=False):
 
 
 def _actual_step_width(points, ideal):
+    """ Using points divide the rectangle's x and y to even sized steps so that
+    each step is as close as possible to the provded 'ideal' value.
+
+    Aim is to spread the positioning error evenly across the whole rectangle.
+
+    X and Y axis and origin are decided using right hand rule.
+
+    Returns
+    -------
+    float, float
+        x and y.
+    """
 
     if type(points) != np.ndarray:
         points = np.array(points)
@@ -388,6 +471,20 @@ def _is_within_rect(xy, p1, p2):
     return True
 
 
+def _wiggle(robot, max_mm, target_pose):
+    x, y = np.random.rand(2) * max_mm
+    xs, ys = np.random.rand(2)  # random sign
+    tcp = deepcopy(target_pose)
+    if xs > 0.5:
+        x *= -1
+    if ys > 0.5:
+        y *= -1
+    tcp[0] += x / 1000
+    tcp[1] += y / 1000
+    tcp[2] = robot.get_tcp()[2]
+    robot.movej(tcp, v=0.1, a=0.05)
+
+
 def rect_angle(points):
     # points: [p1, p_diag_to_p1, p2, p_diag_to_p2]; 2D points
     # return angle in right-handed coordinate system
@@ -421,6 +518,8 @@ def _untangle_rz(rob, pose, preferred_angle):
 
     Returns
     -------
+    list
+        Pose with angle chosen according to 'preferred_angle'.
 
     """
 
