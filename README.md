@@ -1,4 +1,4 @@
-Robot Lego Assembler enables Universal Robot 5 to build Lego structures using affordable machine vision solution (Raspberry Pi and OpenCV 3). [Demonstration video.](https://www.youtube.com/watch?v=iTxzYD6GYOc&feature=youtu.be) This project uses Python 2.7.
+Robot Lego Assembler enables Universal Robot 5 to build Lego structures using affordable machine vision solution (Raspberry Pi and OpenCV 3). [Demonstration video.](https://www.youtube.com/watch?v=iTxzYD6GYOc&feature=youtu.be) This project uses Python 2.7. Supported UR software versions are 3.4 <= X < 4.0.
 
 
 
@@ -12,7 +12,7 @@ Robot Lego Assembler enables Universal Robot 5 to build Lego structures using af
 * User assisted color calibration procedure
 * User assisted platform teach procedure
 * Camera calibration procedure
-* Project implementation and setup documentation (see docs folder)
+* Implementation and setup documentation (see docs folder)
 
 
 
