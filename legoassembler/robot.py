@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 import json
-from pymodbus.client.sync import ModbusTcpClient
 from copy import deepcopy
 
 from legoassembler.communication import URClient, URServer
@@ -32,7 +31,6 @@ class Robot:
 
     def __init__(self, ip_ur, ip_host, grip_def=None, port_host=26532):
 
-        self.mod_client = ModbusTcpClient(ip_ur, 502)
         self._script_client = URClient()
         self._script_client.connect(ip_ur, 30001)
         self._receiver = URServer(ip_host, port_host)
