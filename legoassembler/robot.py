@@ -101,6 +101,21 @@ class Robot:
         return json.loads(self._run(prog))
 
     def grip(self, closed, speed=10, force=10):
+        """ Commands the Robotiq gripper to move
+
+        Parameters
+        ----------
+        closed : int
+            Target amount closed (0..100).
+
+        Returns
+        -------
+        int
+            Actual closed amount that might differ from the target amount if there
+            is an object between the fingers. This value could be used for detecting
+            wheter the gripper has something gripped.
+
+        """
         if self._grip_def:
             prog = deepcopy(self._grip_def)
             for i in range(len(self._grip_def)):
@@ -108,7 +123,8 @@ class Robot:
                 prog[i] = prog[i].replace('$$SPEED$$', str(speed))
                 prog[i] = prog[i].replace('$$FORCE$$', str(force))
 
-            self._run(prog + ['socket_send_line("")'])
+            actual_closed_amt = self._run(prog + ['socket_send_line(rq_current_pos_norm())'])
+            return int(actual_closed_amt)
         else:
             raise ValueError('No gripper definition script defined.')
 

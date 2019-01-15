@@ -43,7 +43,7 @@ camera_parameters:
   awb_mode: "off"
   exposure_mode: "off"
 
-grip_failure_detection:
+grip_failure_detection:  # using Machine vision. Gripper feedback detection is always on.
   active: yes
   roi:  # area between fingers (pixel ranges: heigth, width)
     - [0, 59]

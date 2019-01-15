@@ -345,7 +345,14 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
         _move_to_height(rob, z, vel / 2, a / 3, movelinear=True)
 
         # Grip and go back up
-        rob.grip(closed=gripper['closed'], force=gripper['force'])
+        actual_grip_amt = rob.grip(closed=gripper['closed'], force=gripper['force'])
+
+        # Check that the part is gripped using grip actual value
+        if abs(actual_grip_amt - gripper['closed']) < 1:
+            # Not gripped anything. Open and try again.
+            rob.grip(closed=gripper['open'])
+            continue
+
         _move_to_height(rob, travel_height, vel, a, movelinear=True)
 
         # Get target place pose
@@ -357,7 +364,7 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
         t.daemon = True
         t.start()
 
-        # Check twice that the part is gripped
+        # Check twice that the part is gripped using MV
         block_gripped = True
         if failure_detection_on:
             for i in range(2):
