@@ -43,6 +43,12 @@ camera_parameters:
   awb_mode: "off"
   exposure_mode: "off"
 
+grip_failure_detection:
+  active: yes
+  roi:  # area between fingers (pixel ranges: heigth, width)
+    - [0, 59]
+    - [310, 480]
+
 grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
 
 calibration_data:

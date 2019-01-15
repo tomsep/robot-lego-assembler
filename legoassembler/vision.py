@@ -148,6 +148,58 @@ class MachineVision:
         match = {'x': brick['x_mm'], 'y': brick['y_mm'], 'angle': brick['angle']}
         return match
 
+    def color_in_region(self, color, region, min_area=0.3, draw=True):
+        """ Match color within region of interest
+
+        Also draws (unless disabled) ROI and text whether the match was found.
+
+        Parameters
+        ----------
+        color : str
+            Name of the color.
+        region : list[[float, float], [float, float]]
+            Region of interest (ROI) as pixel ranges of height and width.
+        min_area : float
+            Portion 0..1
+        draw : bool
+
+        Returns
+        -------
+        bool
+            True if matched color area within ROI is larger than 'min_area' portion of the ROI.
+            Else False.
+
+        """
+
+        # Region as Height range, width range, e.g. [[0, 150], [310, 500]]
+        img = remote_capture(self.client, self.cam_params)
+
+        masked = _mask_by_color(img, self.colors[color], no_morph=True, hue_only=True)
+        cropped = masked[region[0][0]:region[0][1], region[1][0]:region[1][1]]
+
+        # Check that cropped area has certain portion of white pixels
+        if np.count_nonzero(cropped == 255) / np.size(cropped) >= min_area:
+            found = True
+        else:
+            found = False
+
+        if draw:
+            draw_color = (0, 180, 0)
+            cv.rectangle(img, (region[1][1], region[0][1]), (region[1][0], region[0][0]), draw_color, thickness=5)
+
+            if found:
+                text = 'match'
+            else:
+                text = 'no match'
+
+            cv.putText(img, text, (region[1][1], region[0][1]), cv.FONT_HERSHEY_PLAIN, 2, (0, 0, 0), thickness=6)
+            cv.putText(img, text, (region[1][1], region[0][1]), cv.FONT_HERSHEY_PLAIN, 2, draw_color, thickness=3)
+
+            cv.imshow('bounding', img)
+            cv.waitKey(1)
+
+        return found
+
     def _distance_from_p1(self, p1, p2, as_mm):
 
         dist_pix = [p2[0] - p1[0], p2[1] - p1[1]]
@@ -236,7 +288,7 @@ def _distance_from_img_center(img, point):
     return math.sqrt(dx**2 + dy**2)
 
 
-def _mask_by_color(img, color, draw=True):
+def _mask_by_color(img, color, draw=True, no_morph=False, hue_only=False):
     """ Create binary mask by color (HSV) range
 
     Values in range are white and other values black.
@@ -244,15 +296,18 @@ def _mask_by_color(img, color, draw=True):
     Parameters
     ----------
     img
-    color : dict
-        Has ranges for HSV colors to mask by. If multiple keys using OR logical oper.
+    color : list
+        Has ranges for HSV colors to mask by. If multiple ranges then using OR logical oper.
 
         Example
-        {'1': [[0, 0, 0], [10, 10, 10]],
-        '2': [[15, 0, 0], [16, 10, 10]]}
+        [[[0, 0, 0], [10, 10, 10]], [[15, 0, 0], [16, 10, 10]]]
         so the mask includes Hues from 0-10 and 15-16 with SV of 0-10, 0-10.
 
     draw
+    no_morph : bool
+        To use closing operation or not.
+    hue_only : bool
+        If matching is done only using hue value or all HSV values.
 
     Returns
     -------
@@ -266,13 +321,18 @@ def _mask_by_color(img, color, draw=True):
     mask = None
     for rang in color:
         if mask is None:
+            if hue_only:
+                rang = [(rang[0][0], 0, 0), (rang[1][0], 255, 255)]
             mask = cv.inRange(hsv, np.array(rang[0]), np.array(rang[1]))
         else:
             mask_ = cv.inRange(hsv, np.array(rang[0]), np.array(rang[1]))
             mask = cv.bitwise_or(mask, mask_)
 
-    kernel = np.ones((13, 13), np.uint8)
-    morphed = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
+    if no_morph:
+        morphed = mask
+    else:
+        kernel = np.ones((13, 13), np.uint8)
+        morphed = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
 
     if draw:
         cv.imshow('mask', morphed)

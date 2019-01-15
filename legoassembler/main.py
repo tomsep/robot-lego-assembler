@@ -179,5 +179,8 @@ def _build(cfg, rob, mv, platf_calib, load_state):
     gripper = cfg['gripper']
     tcp = cfg['tcp']
 
+    finger_region = cfg['grip_failure_detection']['roi']
+    failure_detection_on = cfg['grip_failure_detection']['active']
+
     legoassembler.build.build(rob, mv, gripper, tcp, platf_calib, plan, travel_h,
-                              unit_brick_dims, load_state)
+                              unit_brick_dims, finger_region, failure_detection_on, load_state)

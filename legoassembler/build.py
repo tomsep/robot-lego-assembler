@@ -5,6 +5,7 @@ import numpy as np
 from math import radians, sin, cos, atan2
 from copy import deepcopy
 import json
+from threading import Thread
 
 from legoassembler.vision import MachineVision, NoMatches
 
@@ -255,8 +256,8 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
 
 
 
-def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_dims,
-          load_state=False):
+def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_dims, finger_region,
+          failure_detection_on, load_state=False):
     """ Build a structure based on list of instructions.
 
     Instrutions are expected to be a list
@@ -282,12 +283,15 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
         Build plan as a list of instructions.
     travel_height : float
     unit_brick_dims : dict
+    finger_region : list
+        Region of where the gripped brick in the image. A pixel ranges of height and width.
+    failure_detection_on : bool
+        Whether to use gripping failure detection.
     load_state : bool
         If previous state should be load from disk.
 
     """
 
-    wait = 0.0
     vel = 1.5
     a = 0.6 * 2
 
@@ -317,9 +321,12 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
     allowed_pickup_area = [platf_calib['taught_poses']['part'][0],
                            platf_calib['taught_poses']['part'][1]]
 
-    for i in range(state['current_index'], len(state['plan'])):
-
-        target = plan[i]
+    step_idx = state['current_index']
+    while True:
+        try:
+            target = plan[step_idx]
+        except IndexError:
+            break  # reached the end of plan
 
         # Open gripper
         rob.grip(closed=gripper['open'])
@@ -341,21 +348,53 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
         rob.grip(closed=gripper['closed'], force=gripper['force'])
         _move_to_height(rob, travel_height, vel, a, movelinear=True)
 
-        # Place on platform
-        _place_on_platform(rob, platf_calib['taught_poses']['build'],
-                           target, travel_height, vel, a, unit_brick_dims)
+        # Get target place pose
+        target_pose = _build_drop_off_pose(rob, platf_calib['taught_poses']['build'],
+                           target, unit_brick_dims)
 
-        rob.grip(closed=gripper['open'])
+        # Start moving in another thread
+        t = Thread(target=_move_to_height, args=(rob, travel_height, vel, a, target_pose))
+        t.daemon = True
+        t.start()
 
-        # Save state
-        state['current_index'] = i + 1
-        with open(state_fname, 'w') as f:
-            f.write(json.dumps(state))
+        # Check twice that the part is gripped
+        block_gripped = True
+        if failure_detection_on:
+            for i in range(2):
+                if not mv.color_in_region(target[4], finger_region, min_area=0.15):
+                    block_gripped = False
+                    break
 
-        _move_to_height(rob, travel_height, vel, a, movelinear=True)
+        if not block_gripped:  # redo previous brick
+            t.join(timeout=10)  # join move thread
+            continue
+        else:  # Place brick and advance to next brick
+            t.join(timeout=10)  # join move thread
+
+            # Place
+            # move just above brick
+            platf_heigth = platf_calib['taught_poses']['build'][0][2]
+            target_z = platf_heigth + (target[0] - 1) * unit_brick_dims['base_height']
+            z = target_z + unit_brick_dims['base_height'] * 1.05
+            _move_to_height(rob, z, vel, a, target_pose, movelinear=True)
+
+            # Move slower to place
+            _move_to_height(rob, target_z, vel / 2, a / 3, target_pose, movelinear=True)
+
+            rob.grip(closed=gripper['open'])
+
+            step_idx += 1
+            # Save state
+            state['current_index'] = step_idx
+            with open(state_fname, 'w') as f:
+                f.write(json.dumps(state))
+
+            _move_to_height(rob, travel_height, vel, a, movelinear=True)
 
 
-def _place_on_platform(rob, build_platf, target, travel_height, vel, a, unit_brick_dims):
+def _build_drop_off_pose(rob, build_platf, target, unit_brick_dims):
+    """ Compute pose in which the brick is to be placed.
+    """
 
     # Get grid step size for the build platform
     corners = np.array(build_platf)[:, :2]
@@ -375,16 +414,7 @@ def _place_on_platform(rob, build_platf, target, travel_height, vel, a, unit_bri
     preferred_yaw = rob.rotvec2rpy(build_platf[0][3:])[-1]
     pose = _untangle_rz(rob, pose, preferred_angle=preferred_yaw)
 
-    # move above
-    _move_to_height(rob, travel_height, vel, a, pose)
-
-    # move just above brick
-    target_z = origin[2] + (target[0] - 1) * unit_brick_dims['base_height']
-    z = target_z + unit_brick_dims['base_height'] * 1.05
-    _move_to_height(rob, z, vel, a, pose, movelinear=True)
-
-    # Move slower to place
-    _move_to_height(rob, target_z, vel / 2, a / 3, pose, movelinear=True)
+    return pose
 
 
 def _move_to_height(rob, height, vel, a, pose=None, movelinear=False):
