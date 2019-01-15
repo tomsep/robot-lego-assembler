@@ -34,8 +34,8 @@ gripper:
   # Values represent how closed (0-100%) the gripper is
   open: 60
   open_tight: 65  # barely enough room to fit a 2x2 brick at its studs
-  closed: 69
-  force: 55
+  closed: 75
+  force: 80
 
 camera_parameters:
   resolution: [800, 600]

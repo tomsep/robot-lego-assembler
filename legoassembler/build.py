@@ -399,6 +399,80 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
             _move_to_height(rob, travel_height, vel, a, movelinear=True)
 
 
+def deconstruct(rob, gripper, tcp, platf_calib, plan, travel_height, unit_brick_dims):
+    """ Deconstruct built model.
+
+    Parts are dropped to the middle of the imaging area at travel height.
+    The robot arm wiggles the pieces in order to loosen them before taking them off.
+    Due to low friction the robot might need to try multiple times before it succeeds.
+
+    Multiple parts may be detached at once. Its okay as the program will later notice that
+    some pieces are already gone.
+
+    Parameters
+    ----------
+    rob
+    gripper
+    tcp
+    platf_calib
+    plan
+    travel_height
+    unit_brick_dims
+
+    """
+
+    vel = 1.5
+    a = 1.2
+
+    rob.popup('Continue to start deconstructing', blocking=True)
+
+    rob.set_tcp(tcp['gripper'])
+    # Drop to middle of imaging area
+    drop_off_pose = _midpoint_of_poses(platf_calib['taught_poses']['part'][0],
+                                      platf_calib['taught_poses']['part'][1])
+    drop_off_pose[2] = drop_off_pose[2] + travel_height
+
+    plan = deepcopy(plan)
+    plan.reverse()
+    rob.grip(closed=gripper['open'])
+
+    for piece in plan:
+        pose = _build_drop_off_pose(rob, platf_calib['taught_poses']['build'], piece, unit_brick_dims)
+
+        # _build_drop_off_pose doesn't compute the height so its done below
+        platf_heigth = platf_calib['taught_poses']['build'][0][2]
+        target_z = platf_heigth + (piece[0] - 1) * unit_brick_dims['base_height']
+        pose[2] = target_z
+
+        _move_to_height(rob, pose[2] + 0.04, vel, a, pose, movelinear=False)
+        rob.movel(pose, v=vel, a=a/2)
+        actual_grip_amt = rob.grip(closed=gripper['closed'], force=gripper['force'])
+
+        # Check that the part is gripped using grip actual value
+        if abs(actual_grip_amt - gripper['closed']) < 1:
+            # Not gripped anything. Move to next piece.
+            rob.grip(closed=gripper['open'])
+            continue
+
+        else:
+
+            _detach_brick(rob)
+            while abs(rob.grip(closed=gripper['closed'], force=gripper['force']) - gripper['closed']) < 1:
+                # Not gripped anything. Try again
+                rob.grip(closed=gripper['open'])
+                rob.movel(pose, v=vel, a=a)
+                rob.grip(closed=gripper['closed'], force=gripper['force'])
+                _detach_brick(rob, open=gripper['open'], closed=gripper['closed'], side_mov=1, up_move=2)
+
+            # Drop off
+            _move_to_height(rob, drop_off_pose[2], vel=vel, a=a, movelinear=False)
+            rob.movej(drop_off_pose, v=vel, a=a)
+            rob.grip(closed=gripper['open'])
+            _move_to_height(rob, drop_off_pose[2], vel=vel, a=a, pose=pose ,movelinear=False)
+
+    print('Deconstruction done!')
+
+
 def _build_drop_off_pose(rob, build_platf, target, unit_brick_dims):
     """ Compute pose in which the brick is to be placed.
     """
@@ -640,3 +714,37 @@ def _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height,
     rob.movej(pose, v=vel, a=a)
 
     return
+
+def _detach_brick(rob, up_move=2):
+    """ Detach brick from build platform by wiggling it.
+
+    Parameters
+    ----------
+    rob
+    up_move : float
+        How much up movement is allowed for the wiggling (mm)
+
+    Returns
+    -------
+
+    """
+    pose = rob.get_tcp()
+    vel = 0.2
+    acc = 0.2
+    roll = 0.07
+    up_move /= -1000
+    roll_poses = []
+    roll_poses.append(rob.pose_trans(pose, [0, 0, up_move] + rob.rpy2rotvec([0, -roll, 0])))
+    roll_poses.append(rob.pose_trans(pose, [0, 0, up_move] + rob.rpy2rotvec([-roll, 0, 0])))
+    roll_poses.append(rob.pose_trans(pose, [0, 0, up_move] + rob.rpy2rotvec([0, roll, 0])))
+
+    # Randomize wiggling order
+    if np.random.randn(1)[0] > 0.5:
+        roll_poses.reverse()
+
+    for p in roll_poses:
+        rob.movej(p, v=vel, a=acc)
+
+
+    pose_ = rob.pose_trans(pose, [0, 0, -0.05] + [0, 0, 0])
+    rob.movel(pose_, v=vel, a=acc)

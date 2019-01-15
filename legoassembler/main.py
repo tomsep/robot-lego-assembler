@@ -56,6 +56,8 @@ def run(cfg):
             load = False
         _build(cfg, rob, mv, platform_calib, load)
 
+    if input('Start deconstructing? [Y/n]: ') == 'Y':
+        _deconstruct(cfg, rob, platform_calib)
 
 def _teach_platform(cfg, rob, load):
 
@@ -184,3 +186,15 @@ def _build(cfg, rob, mv, platf_calib, load_state):
 
     legoassembler.build.build(rob, mv, gripper, tcp, platf_calib, plan, travel_h,
                               unit_brick_dims, finger_region, failure_detection_on, load_state)
+
+def _deconstruct(cfg, rob, platf_calib):
+
+    fname = cfg['lego_model_path']
+    plan = _load_build_plan(fname)
+    travel_h = cfg['environment']['travel_height']
+    gripper = cfg['gripper']
+    tcp = cfg['tcp']
+    unit_brick_dims = {'side': cfg['brick_2x2_length'] / 1000,
+                       'base_height': cfg['brick_base_height'] / 1000}
+
+    legoassembler.build.deconstruct(rob, gripper, tcp, platf_calib, plan, travel_h, unit_brick_dims)
