@@ -30,6 +30,8 @@ class Robot:
     """
 
     def __init__(self, ip_ur, ip_host, grip_def=None, port_host=26532):
+        # grip_def a dict with paths to two urscripts
+        # 'robotiq_operate' and 'robotiq_get_pos'.
 
         self._script_client = URClient()
         self._script_client.connect(ip_ur, 30001)
@@ -38,10 +40,14 @@ class Robot:
         self._port_host = port_host
 
         if grip_def:
-            with open(grip_def, 'r') as f:
-                self._grip_def = f.readlines()
+            with open(grip_def['robotiq_operate'], 'r') as f:
+                self._grip_operate = f.readlines()
+            with open(grip_def['robotiq_get_pos'], 'r') as f:
+                self._grip_get_pos = f.readlines()
         else:
-            self._grip_def = ['']
+            self._grip_operate = ['']
+            self._grip_get_pos = ['']
+
     def movel(self, pose, a=1.2, v=0.25, relative=False):
         if relative:
             prog = ['pose = get_actual_tcp_pose()',
@@ -100,7 +106,7 @@ class Robot:
              'socket_send_line(rotvec)']
         return json.loads(self._run(prog))
 
-    def grip(self, closed, speed=10, force=10):
+    def grip(self, closed, speed=50, force=10):
         """ Commands the Robotiq gripper to move
 
         Parameters
@@ -113,20 +119,40 @@ class Robot:
         int
             Actual closed amount that might differ from the target amount if there
             is an object between the fingers. This value could be used for detecting
-            wheter the gripper has something gripped.
+            whether the gripper has something gripped.
 
         """
-        if self._grip_def:
-            prog = deepcopy(self._grip_def)
-            for i in range(len(self._grip_def)):
+        if self._grip_operate:
+            prog = deepcopy(self._grip_operate)
+            for i in range(len(self._grip_operate)):
                 prog[i] = prog[i].replace('$$CLOSED$$', str(closed))
                 prog[i] = prog[i].replace('$$SPEED$$', str(speed))
                 prog[i] = prog[i].replace('$$FORCE$$', str(force))
 
+            actual_closed_amt = self._run(prog + ['socket_send_line(rq_get_position())'])
+            return int(actual_closed_amt)
+        else:
+            raise ValueError('No gripper operation definition script defined.')
+
+    def gripper_actual_pos(self):
+        """ Get gripper actual position
+
+        Returns
+        -------
+        int
+            Actual closed amount that might differ from the target amount if there
+            is an object between the fingers. This value could be used for detecting
+            whether the gripper has something gripped.
+
+        """
+
+        if self._grip_get_pos:
+            prog = deepcopy(self._grip_get_pos)
+
             actual_closed_amt = self._run(prog + ['socket_send_line(rq_current_pos_norm())'])
             return int(actual_closed_amt)
         else:
-            raise ValueError('No gripper definition script defined.')
+            raise ValueError('No gripper get actual pos definition script defined.')
 
     def pose_trans(self, p_from, p_from_to):
         """ Transform pose using another pose

@@ -49,7 +49,9 @@ grip_failure_detection:  # using Machine vision. Gripper feedback detection is a
     - [0, 59]
     - [310, 480]
 
-grip_def_script: legoassembler/urscripts/gripper_def_robotiq-2f-85.script
+urscripts:
+  robotiq_operate: legoassembler/urscripts/robotiq-2f-85_operate.script
+  robotiq_get_pos: legoassembler/urscripts/robotiq-2f-85_get_actual_position.script
 
 calibration_data:
   camera: camera_calibr.yml

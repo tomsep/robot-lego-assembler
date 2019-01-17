@@ -211,7 +211,8 @@ def load_config():
         # Make path OS independent
         return entry.replace('/', os.sep).replace('\\', os.sep)
 
-    cfg['grip_def_script'] = _replace_separator(cfg['grip_def_script'])
+    cfg['urscripts']['robotiq_operate'] = _replace_separator(cfg['urscripts']['robotiq_operate'])
+    cfg['urscripts']['robotiq_get_pos'] = _replace_separator(cfg['urscripts']['robotiq_get_pos'])
 
     cfg['calibration_data']['camera'] = \
         _replace_separator(cfg['calibration_data']['camera'])

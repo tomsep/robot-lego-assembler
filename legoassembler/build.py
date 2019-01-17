@@ -344,16 +344,17 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
         z = imaging_area[2] + unit_brick_dims['base_height']
         _move_to_height(rob, z, vel / 2, a / 3, movelinear=True)
 
-        # Grip and go back up
-        actual_grip_amt = rob.grip(closed=gripper['closed'], force=gripper['force'])
+        # Grip and
+        rob.grip(closed=gripper['closed'], force=gripper['force'])
+
+        # Go back up
+        _move_to_height(rob, travel_height, vel, a, movelinear=True)
 
         # Check that the part is gripped using grip actual value
-        if abs(actual_grip_amt - gripper['closed']) < 1:
+        if abs(rob.gripper_actual_pos() - gripper['closed']) < 1:
             # Not gripped anything. Open and try again.
             rob.grip(closed=gripper['open'])
             continue
-
-        _move_to_height(rob, travel_height, vel, a, movelinear=True)
 
         # Get target place pose
         target_pose = _build_drop_off_pose(rob, platf_calib['taught_poses']['build'],
@@ -457,12 +458,12 @@ def deconstruct(rob, gripper, tcp, platf_calib, plan, travel_height, unit_brick_
         else:
 
             _detach_brick(rob)
-            while abs(rob.grip(closed=gripper['closed'], force=gripper['force']) - gripper['closed']) < 1:
+            while abs(rob.gripper_actual_pos() - gripper['closed']) < 1:
                 # Not gripped anything. Try again
                 rob.grip(closed=gripper['open'])
                 rob.movel(pose, v=vel, a=a)
                 rob.grip(closed=gripper['closed'], force=gripper['force'])
-                _detach_brick(rob, open=gripper['open'], closed=gripper['closed'], side_mov=1, up_move=2)
+                _detach_brick(rob, up_move=2)
 
             # Drop off
             _move_to_height(rob, drop_off_pose[2], vel=vel, a=a, movelinear=False)
@@ -733,10 +734,12 @@ def _detach_brick(rob, up_move=2):
     acc = 0.2
     roll = 0.07
     up_move /= -1000
+
     roll_poses = []
     roll_poses.append(rob.pose_trans(pose, [0, 0, up_move] + rob.rpy2rotvec([0, -roll, 0])))
     roll_poses.append(rob.pose_trans(pose, [0, 0, up_move] + rob.rpy2rotvec([-roll, 0, 0])))
     roll_poses.append(rob.pose_trans(pose, [0, 0, up_move] + rob.rpy2rotvec([0, roll, 0])))
+    roll_poses.append(rob.pose_trans(pose, [0, 0, up_move] + rob.rpy2rotvec([roll, 0, 0])))
 
     # Randomize wiggling order
     if np.random.randn(1)[0] > 0.5:
@@ -744,7 +747,6 @@ def _detach_brick(rob, up_move=2):
 
     for p in roll_poses:
         rob.movej(p, v=vel, a=acc)
-
 
     pose_ = rob.pose_trans(pose, [0, 0, -0.05] + [0, 0, 0])
     rob.movel(pose_, v=vel, a=acc)

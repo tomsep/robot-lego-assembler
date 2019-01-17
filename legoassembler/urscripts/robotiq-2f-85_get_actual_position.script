@@ -1,0 +1,39 @@
+#aliases for the gripper variable names
+ACT = 1
+GTO = 2
+ATR = 3
+ARD = 4
+FOR = 5
+SPE = 6
+OBJ = 7
+STA = 8
+FLT = 9
+POS = 10
+PRE = 11
+
+def rq_init_connection(gripper_sid=9, gripper_socket="1"):
+socket_open("127.0.0.1",63352, gripper_socket)
+socket_set_var("SID", gripper_sid,	gripper_socket)
+ack = socket_read_byte_list(3, gripper_socket)
+end
+
+def rq_current_pos(gripper_socket="1"):
+	rq_pos = socket_get_var("POS",gripper_socket)
+	sync()
+	return rq_pos
+end
+
+def rq_current_pos_norm(gripper_socket="1"):
+	pos_gripper = rq_current_pos(gripper_socket)
+	pos_norm = gripper_to_norm(pos_gripper)
+	return pos_norm
+end
+
+def gripper_to_norm(value_gripper):
+	value_norm = (value_gripper / 255) * 100
+	return floor(value_norm)
+end
+
+###########
+
+rq_init_connection(9, "1")

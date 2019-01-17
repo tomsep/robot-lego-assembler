@@ -31,7 +31,7 @@ def run(cfg):
         print('Running in simulation mode')
         grip_def = None
     else:
-        grip_def = cfg['grip_def_script']
+        grip_def = cfg['urscripts']
 
     rob = Robot(cfg_net['ur']['ip'], cfg_net['host']['ip'],
                 grip_def, cfg_net['host']['port'])
