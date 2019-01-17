@@ -174,7 +174,7 @@ def preview_taught_platform(rob, tcp, calib, travel_height, gripper):
 
 
 def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
-                     brick2x2_side_mm, color):
+                     brick2x2_side_mm, color, brick_base_height):
     """ Calibrates MachineVision object by imaging a 2x2 brick.
 
     Calibration brick's position is assumed to be the first taught build platform
@@ -198,6 +198,8 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
         Ideal side length of the 2x2 brick.
     color : str
         Name of the color used for calibration brick.
+    brick_base_height : float
+        In mm the height of a brick without its studs.
 
     """
 
@@ -211,7 +213,7 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
 
     # Goto starting height
     pose = rob.get_tcp()
-    pose[2] = imaging_area[2] + travel_height
+    pose[2] = imaging_area[2] + travel_height - brick_base_height / 1000
     rob.movel(pose, v=vel, a=a)
     time.sleep(wait)
 

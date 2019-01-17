@@ -83,8 +83,11 @@ def _calibrate_camera(cfg, rob, mv, platf_calib):
     color = cfg['calibration_color']
     gripper = cfg['gripper']
     tcp = cfg['tcp']
+    brick_base_heigth = cfg['brick_base_height']
+
     legoassembler.build.calibrate_camera(rob, mv, gripper, tcp, travel_height,
-                                         platf_calib, brick_2x2_length, color)
+                                         platf_calib, brick_2x2_length, color,
+                                         brick_base_heigth)
     mv.save_calibration(cfg['calibration_data']['camera'])
 
 

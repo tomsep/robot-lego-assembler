@@ -44,7 +44,7 @@ camera_parameters:
   exposure_mode: "off"
 
 grip_failure_detection:  # using Machine vision. Gripper feedback detection is always on.
-  active: yes
+  active: no
   roi:  # area between fingers (pixel ranges: heigth, width)
     - [0, 59]
     - [310, 480]
