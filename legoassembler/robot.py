@@ -1,6 +1,8 @@
 from __future__ import division, print_function
 import json
 from copy import deepcopy
+from threading import Thread
+import time
 
 from legoassembler.communication import URClient, URServer
 
@@ -44,6 +46,11 @@ class Robot:
                 self._grip_operate = f.readlines()
             with open(grip_def['robotiq_get_pos'], 'r') as f:
                 self._grip_get_pos = f.readlines()
+
+            if not self._gripper_active():
+                msg = 'Gripper is not active and can not be used. Activate it before use.'
+                self.popup(msg, blocking=False)
+                raise RuntimeError(msg)
         else:
             self._grip_operate = ['']
             self._grip_get_pos = ['']
@@ -202,3 +209,26 @@ class Robot:
         data = self._receiver.recv()
         self._receiver.close()
         return data
+
+    def _gripper_active(self):
+        """ Use gripper functions and check that they pass
+
+        Returns
+        -------
+        bool
+            True if gripper is active and working.
+
+        """
+
+        def _fun():
+            pos = self.gripper_actual_pos()
+            self.grip(pos)
+        t = Thread(target=_fun)
+        t.daemon = True
+        t.start()
+
+        time.sleep(3)
+        if t.is_alive():
+            return False
+        else:
+            return True
