@@ -328,8 +328,10 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
         except IndexError:
             break  # reached the end of plan
 
-        # Open gripper
-        rob.grip(closed=gripper['open'])
+        # Open gripper if needed
+        if abs(rob.gripper_actual_pos() - gripper['open']) > 1:
+            # Not gripped anything. Open and try again.
+            rob.grip(closed=gripper['open'])
 
         # Find match and move above it
         _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height, vel,
@@ -366,14 +368,13 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
         t.start()
 
         # Check twice that the part is gripped using MV
-        block_gripped = True
+        detection_failures = 0
         if failure_detection_on:
             for i in range(2):
                 if not mv.color_in_region(target[4], finger_region, min_area=0.15):
-                    block_gripped = False
-                    break
+                    detection_failures += 1
 
-        if not block_gripped:  # redo previous brick
+        if detection_failures > 1:  # redo previous brick
             t.join(timeout=10)  # join move thread
             continue
         else:  # Place brick and advance to next brick
@@ -674,6 +675,10 @@ def _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height,
             match = mv.find_brick(target[4], size, margin=0.2,
                                   use_max_edge=use_max_edge, draw=True)
         except NoMatches:
+            random_pose = deepcopy(pose)
+            rand_xy = _random_point_within_rect(allowed_rect_area[0], allowed_rect_area[1])
+            random_pose[0:2] = rand_xy
+            rob.movej(random_pose, v=vel, a=a)
             continue
 
         print(match)
@@ -701,10 +706,11 @@ def _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height,
             is_it = _is_within_rect(curr_pose_xy, allowed_rect_area[0],
                                     allowed_rect_area[1])
             if not is_it:
-                # Go back to above imaging area
-                pose = deepcopy(imaging_area)
-                pose[2] += travel_height
-                rob.movej(pose, v=vel, a=a)
+                # Go to random point within imaging area
+                random_pose = deepcopy(pose)
+                rand_xy = _random_point_within_rect(allowed_rect_area[0], allowed_rect_area[1])
+                random_pose[0:2] = rand_xy
+                rob.movej(random_pose, v=vel, a=a)
                 continue
 
         rob.movej(pose_, v=vel, a=a, relative=True)
@@ -750,3 +756,10 @@ def _detach_brick(rob, up_move=2):
 
     pose_ = rob.pose_trans(pose, [0, 0, -0.05] + [0, 0, 0])
     rob.movel(pose_, v=vel, a=acc)
+
+
+def _random_point_within_rect(p1, p2):
+    # For a rectangle defined by two points p1 and p2.
+    rn_x = np.random.uniform(min(p1[0], p2[0]), max(p1[0], p2[0]), size=1)[0]
+    rn_y = np.random.uniform(min(p1[1], p2[1]), max(p1[1], p2[1]), size=1)[0]
+    return [rn_x, rn_y]
