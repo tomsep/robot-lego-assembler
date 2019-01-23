@@ -137,7 +137,7 @@ class MachineVision:
 
         target_ratio = size[0] / size[1]
         bricks = filter(lambda x: abs(target_ratio - x['ratio']) <= margin, bricks)
-
+        bricks = list(bricks)
 
         if len(bricks) == 0:
             raise NoMatches

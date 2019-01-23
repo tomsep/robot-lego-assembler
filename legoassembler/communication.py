@@ -73,7 +73,7 @@ class Client:
             self.socket = None
 
     def send(self, data):
-        _send(data, self.socket)
+        _send(data.encode('utf-8'), self.socket)
 
     def recv(self):
         return _recv(self.socket)
@@ -132,7 +132,7 @@ class URClient(Client):
     """
     def send(self, data):
         if type(data) == str:
-            data = data.encode()
+            data = data.encode('utf-8')
         self.socket.sendall(data)
 
     def recv(self):

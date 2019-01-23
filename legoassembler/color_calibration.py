@@ -3,7 +3,7 @@ import cv2 as cv
 import numpy as np
 from functools import partial
 import scipy.optimize
-from sys import maxint, version_info
+from sys import maxsize, version_info
 import yaml
 import os
 
@@ -63,7 +63,7 @@ def _bound_width(bounds, array, min_prop):
     start, end = bounds[0], bounds[1]
 
     if not 0 <= start < end:
-        return maxint
+        return maxsize
 
     total_area = np.sum(array)
     area = np.sum(array.take(range(start, end), mode='wrap'))
@@ -71,7 +71,7 @@ def _bound_width(bounds, array, min_prop):
     if area / total_area >= min_prop:
         return (end - start)
     else:
-        return maxint
+        return maxsize
 
 
 def _hsv_range_in_selection(img, points, min_prop):
