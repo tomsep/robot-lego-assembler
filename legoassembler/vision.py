@@ -6,6 +6,8 @@ import math
 import json
 import yaml
 from copy import deepcopy
+import tensorflow as tf
+tf.enable_eager_execution()
 
 from legoassembler.utils import rectangle_angle_2d, rectangle_center_2d
 
@@ -17,6 +19,9 @@ class MachineVision:
         self.cam_params = cam_params
         self.colors = color_defs
         self._is_calibrated = False
+
+        model_path = './tfmodels/sobel-unet-color-psize/model.h5'
+        self._model = tf.keras.models.load_model(model_path, compile=False)
 
     def calibrate(self, side_mm, color, draw=True):
         """ Gathers camera calibration info from a still picture of a square brick
@@ -76,7 +81,7 @@ class MachineVision:
 
         self._is_calibrated = True
 
-    def find_brick(self, color, size, margin=0.2, use_max_edge=False, draw=True):
+    def find_brick(self, color, size, margin=0.2, use_max_edge=False, draw=True, use_model=True):
         """ Localize brick with best dimension match and specified color
 
 
@@ -118,7 +123,17 @@ class MachineVision:
                              'no calibration has been loaded.')
 
         img = remote_capture(self.client, self.cam_params)
-        bricks = _find_bricks_of_color(img, self.colors[color], use_max_edge, draw)
+
+        if use_model:
+            if color:
+                target_color = self.colors[color]
+            else:
+                target_color = None
+            bricks = _find_bricks_using_model(img, self._model, use_max_edge, (160, 160), (400, 400),
+                                              target_color, draw)
+
+        else:
+            bricks = _find_bricks_of_color(img, self.colors[color], use_max_edge, draw)
 
         try:
             bricks = _best_rect_ratio_match(bricks, size, margin)
@@ -272,6 +287,51 @@ def _find_bricks_of_color(img, color, use_max_edge, draw=True):
     return bricks
 
 
+def _find_bricks_using_model(img, model, use_max_edge, input_size, window_size, color=None, draw=True):
+    """ Find bricks based on model
+    Color ignorant if the 'model' is color as well.
+
+    Parameters
+    ----------
+    model : tensorflow Keras model
+    color : color HSV range to find
+        If None colors are ignored and only shape is considered.
+
+    """
+
+    mask = img[:, :, 0].copy() * 0
+
+    # Center crop ROI of 'window_size'
+    shape = np.shape(mask)
+    h_cent, w_cent = (shape[0] // 2, shape[1] // 2)
+    mask_roi = mask[h_cent - window_size[0] // 2:h_cent + window_size[0] // 2,
+               w_cent - window_size[1] // 2:w_cent + window_size[1] // 2]
+
+    # Get segmentation prediction
+    segmentation = _net_predict(img, model, input_size, window_size)
+
+    if draw:
+        cv.imshow('neural_network_output', segmentation)
+
+    # Threshold red channel to binary image
+    red_chnl = segmentation.copy()[:, :, 2]
+    _, mask_roi[:, :] = cv.threshold(red_chnl, 255//2, 255, cv.THRESH_BINARY)
+
+    if draw:
+        draw_on = img
+    else:
+        draw_on = None
+
+    # Find contours and fit boxes to mask
+    contours = _find_contours(mask, draw_on)
+
+    if color:
+        contours = _filter_contours_by_color(img, contours, color)
+
+    bricks = _bounding_rectangles(mask, contours, use_max_edge, draw)
+    return bricks
+
+
 def _img_midpoint(img):
     yx = np.shape(img)[:2]  # take only first 2 dims
     return [int(yx[1]), int(yx[0])]
@@ -357,7 +417,7 @@ def _find_contours(mask, draw_on=None):
 
     if draw_on is not None:
         img_ = np.copy(draw_on)
-        draw_color = (0, 0, 0)
+        draw_color = (200, 200, 0)
         cv.drawContours(img_, contours, -1, draw_color, thickness=2)
         cv.imshow('contours', img_)
         cv.waitKey(1)
@@ -410,7 +470,7 @@ def _bounding_rectangles(img, contours, use_max_edge=False, draw=True):
         rects.append(rect)
 
         if draw:
-            draw_color = (0, 0, 0)
+            draw_color = (200, 200, 0)
             size = 2
 
             # Draw arrow
@@ -546,3 +606,65 @@ def _best_rect_ratio_match(bricks, size, margin):
 
     bricks = filter(lambda x: abs(_ratio(x['dimensions']) - target_ratio) < target_ratio * margin, bricks)
     return sorted(bricks, key=lambda x: abs(_ratio(x['dimensions']) - target_ratio))
+
+
+def _net_predict(img, model, input_size, window_size=(400, 400)):
+    shape = np.shape(img)
+    h_cent, w_cent = (shape[0] // 2, shape[1] // 2)
+    roi = img[h_cent - window_size[0]//2:h_cent + window_size[0]//2, w_cent - window_size[1]//2:w_cent + window_size[1]//2, :]
+    img_in = _parse_image_for_prediction(roi)
+
+    pred = model.predict(np.expand_dims(img_in, axis=0), batch_size=1)
+    pred = (pred * 255).astype(np.uint8)
+    pred = cv.resize(pred[0], window_size)
+
+    return pred
+
+
+def _parse_image_for_prediction(image):
+    """ Process png image
+    """
+    image = tf.convert_to_tensor(image, tf.uint8)
+    def _process(_image, reverse_chans=False):
+
+
+        # Don't use tf.image.decode_image, or the output shape will be undefined
+        if reverse_chans:
+            _image = tf.reverse(_image, axis=[-1])
+        # This will convert to float values in [0, 1]
+        _image = tf.image.convert_image_dtype(_image, tf.float32)
+
+        _image = tf.image.resize_images(_image, [160, 160])
+        return _image
+
+    image = _process(image, reverse_chans=False)
+
+    with tf.device('/cpu:0'):
+        sobel = tf.image.sobel_edges(tf.expand_dims(image, axis=0))
+        sobel = tf.squeeze(sobel)
+        sobel = tf.reshape(sobel, [160, 160, 6])
+        ass_shape = tf.debugging.assert_equal(tf.shape(sobel), tf.constant([160, 160, 6]))
+        with tf.control_dependencies([ass_shape]):
+            image = tf.concat([image, sobel], axis=2)
+
+    return image
+
+
+def _filter_contours_by_color(img, contours, color, min_prop=0.5, draw=True):
+
+    filtered_conts = []
+
+    for cont in contours:
+        mask = np.zeros(np.shape(img), np.uint8)
+        mask = cv.fillPoly(mask, [cont], (255, 255, 255))
+
+        color_roi = np.zeros_like(img)
+        np.putmask(color_roi, mask>0, values=img)
+
+        masked_color = _mask_by_color(color_roi, color, draw)
+
+        if np.count_nonzero(masked_color>0) / np.count_nonzero(mask[:, :, 0]>0) > min_prop:
+            filtered_conts.append(cont)
+
+    return np.array(filtered_conts)
+

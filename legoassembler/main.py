@@ -183,12 +183,16 @@ def _build(cfg, rob, mv, platf_calib, load_state):
                        'base_height': cfg['brick_base_height'] / 1000}
     gripper = cfg['gripper']
     tcp = cfg['tcp']
+    use_model = cfg['use_neural_network']
+    use_color_vision = cfg['use_color_vision']
 
     finger_region = cfg['grip_failure_detection']['roi']
     failure_detection_on = cfg['grip_failure_detection']['active']
 
     legoassembler.build.build(rob, mv, gripper, tcp, platf_calib, plan, travel_h,
-                              unit_brick_dims, finger_region, failure_detection_on, load_state)
+                              unit_brick_dims, finger_region, failure_detection_on,
+                              use_color_vision, use_model, load_state)
+
 
 def _deconstruct(cfg, rob, platf_calib):
 

@@ -242,7 +242,7 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
 
     # Find match and move above it
     _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height, vel, a,
-                            max_diff=0.7)
+                            max_diff=0.7, use_color_vision=True, use_model=False)
 
     # Touch the match
     pose = rob.get_tcp()
@@ -259,7 +259,7 @@ def calibrate_camera(rob, mv, gripper, tcp, travel_height, calib,
 
 
 def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_dims, finger_region,
-          failure_detection_on, load_state=False):
+          failure_detection_on, use_color_vision, use_model, load_state=False):
     """ Build a structure based on list of instructions.
 
     Instrutions are expected to be a list
@@ -337,7 +337,8 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
 
         # Find match and move above it
         _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height, vel,
-                                a, max_diff=0.7, allowed_rect_area=allowed_pickup_area)
+                                a, max_diff=0.7, allowed_rect_area=allowed_pickup_area,
+                                use_color_vision=use_color_vision, use_model=use_model)
 
         #  ----Grab the match----
         # Move just a little above the brick
@@ -647,7 +648,7 @@ def _untangle_rz(rob, pose, preferred_angle):
 
 
 def _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height,
-                            vel, a, max_diff=0.7, allowed_rect_area=None):
+                            vel, a, max_diff=0.7, allowed_rect_area=None, use_color_vision=True, use_model=True):
     """ Move gripper above brick that matches best the target given
 
     At the end of the function TCP is set back to 'gripper'.
@@ -674,8 +675,13 @@ def _find_brick_iteratively(rob, mv, target, tcp, imaging_area, travel_height,
                 use_max_edge = True
             else:
                 use_max_edge = False
-            match = mv.find_brick(target[4], size, margin=0.2,
-                                  use_max_edge=use_max_edge, draw=True)
+
+            if use_color_vision:
+                target_color = target[4]
+            else:
+                target_color = None
+            match = mv.find_brick(target_color, size, margin=0.2,
+                                  use_max_edge=use_max_edge, draw=True, use_model=use_model)
         except NoMatches:
             random_pose = deepcopy(pose)
             rand_xy = _random_point_within_rect(allowed_rect_area[0], allowed_rect_area[1])
