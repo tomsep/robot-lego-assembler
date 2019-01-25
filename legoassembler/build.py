@@ -407,22 +407,12 @@ def build(rob, mv, gripper, tcp, platf_calib, plan, travel_height, unit_brick_di
 def deconstruct(rob, gripper, tcp, platf_calib, plan, travel_height, unit_brick_dims):
     """ Deconstruct built model.
 
-    Parts are dropped to the middle of the imaging area at travel height.
+    Parts are dropped to the middle of the imaging area at travel height + 10cm.
     The robot arm wiggles the pieces in order to loosen them before taking them off.
     Due to low friction the robot might need to try multiple times before it succeeds.
 
     Multiple parts may be detached at once. Its okay as the program will later notice that
     some pieces are already gone.
-
-    Parameters
-    ----------
-    rob
-    gripper
-    tcp
-    platf_calib
-    plan
-    travel_height
-    unit_brick_dims
 
     """
 
@@ -435,7 +425,7 @@ def deconstruct(rob, gripper, tcp, platf_calib, plan, travel_height, unit_brick_
     # Drop to middle of imaging area
     drop_off_pose = _midpoint_of_poses(platf_calib['taught_poses']['part'][0],
                                       platf_calib['taught_poses']['part'][1])
-    drop_off_pose[2] = drop_off_pose[2] + travel_height
+    drop_off_pose[2] = drop_off_pose[2] + travel_height + 10 / 100
 
     plan = deepcopy(plan)
     plan.reverse()

@@ -21,11 +21,12 @@ if __name__ == '__main__':
     cfg_net = cfg['network']['raspi']
     fname = cfg['calibration_data']['colors']
 
+    color_strictness = cfg['color_strictness']
+
     client = Client()
     client.connect(cfg_net['ip'], cfg_net['port'])
 
     cam_params = cfg['camera_parameters']
     print('Camera parameters used: {}'.format(cam_params))
     img = remote_capture(client, cam_params)
-
-    color_calibration_from_img(img, widen_prop=0.4, min_prop=0.98, fname=fname)
+    color_calibration_from_img(img, widen_prop=color_strictness, min_prop=0.98, fname=fname)

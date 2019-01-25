@@ -26,6 +26,12 @@ brick_2x2_length: 31.8  # mm
 brick_base_height: 19.2  # From bottom to root of the stud, mm
 calibration_color: blue
 
+# How strict to be about the colors calibrated.
+# Larger values help with environment lighting changing after color calibration.
+# Low values are more accurate but slight lighting changes may break the color vision.
+# 0.75 recommended when 'use_neural_network' == yes and 0.4 otherwise.
+color_strictness: 0.75  # 0..1
+
 tcp:
   # Pose    x  y   z  rx  ry  rz
   # USE gripper z for the camera and do not add rotations to it
