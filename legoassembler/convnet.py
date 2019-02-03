@@ -161,6 +161,7 @@ def unet_full(depth_factor=1, dropout=0, lrate=0.001):
 
 if __name__ == '__main__':
     """ Train a neural network. Allows continuing or starting a new random initialization.
+    To train run this file from the folder this file is in. Otherwise images cannot be found.
     """
 
 
