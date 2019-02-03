@@ -17,15 +17,12 @@ def load_colors(fname):
         return yaml.safe_load(f.read())
 
 
-
 def parse_image(image):
     """ Process png image
     """
     image = tf.convert_to_tensor(image, tf.uint8)
     def _process(_image, reverse_chans=False):
 
-
-        # Don't use tf.image.decode_image, or the output shape will be undefined
         if reverse_chans:
             _image = tf.reverse(_image, axis=[-1])
         # This will convert to float values in [0, 1]
@@ -59,16 +56,14 @@ if __name__ == '__main__':
 
     cam_params = cfg['camera_parameters']
 
-    model_path = './tfmodels/sobel-unet-color-psize/model.h5'
+    model_path = cfg['neural_network_model_path']
 
     model = tf.keras.models.load_model(model_path, compile=False)
 
 
     while True:
         img = remote_capture(client, cam_params)
-        #img = cv.imread('./imageset/validation/1_img.png', cv.IMREAD_COLOR)
         cv.imshow('orig', img)
-
 
         shape = np.shape(img)
         h_cent, w_cent = (shape[0] // 2, shape[1] // 2)
@@ -80,8 +75,6 @@ if __name__ == '__main__':
 
         start = time.time()
 
-        # bgr to rgb
-        #roi_rszized = np.flip(roi_rszized, axis=2)
         roi_rszized = roi_rszized.astype('float') / 255
 
         pred = model.predict(np.expand_dims(img_in, axis=0), batch_size=1)
@@ -91,6 +84,5 @@ if __name__ == '__main__':
         cv.imshow('prediction', pred)
 
         cv.waitKey(30)
-        time.sleep(0.2)
 
 

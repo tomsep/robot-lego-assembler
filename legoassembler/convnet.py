@@ -64,8 +64,6 @@ def train_preprocess(image, label):
 
     image = image[:, :, :3]
 
-
-
     # Randomize left-right flip
     do_flip = tf.random_uniform([]) > 0.5
     image = tf.cond(do_flip, lambda: tf.image.flip_left_right(image), lambda: image)
@@ -99,18 +97,6 @@ def train_preprocess(image, label):
     return image, label
 
 
-def convnet(input_shape):
-    model = tf.keras.Sequential([
-        # Adds a densely-connected layer with 64 units to the model:
-        layers.Conv2D(5, (4, 4), padding='same', activation='selu', input_shape=input_shape),
-        layers.Conv2D(3, (4, 4), padding='same', activation='softmax')])
-
-    model.compile(optimizer=tf.train.AdamOptimizer(0.001),
-                  loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-    return model
-
-
 def convdown(inputs, depth, dropout=0):
     kernel = (3, 3)
     x = layers.MaxPool2D((2, 2), padding='valid')(inputs)
@@ -136,32 +122,6 @@ def convup(left_in, down_in, depths, end_softmax=False, dropout=0):
     x = layers.Dropout(dropout)(x)
     return x
 
-
-def unet(dropout=0):
-    kernel = (3, 3)
-
-    inputs = tf.keras.Input(shape=(128, 128, 3))
-
-    level_0 = layers.Conv2D(32, kernel, padding='same', activation='selu')(inputs)
-    level_0 = layers.Dropout(dropout)(level_0)
-
-    level_1 = convdown(inputs, 64)
-
-    level_1 = layers.Conv2D(64, kernel, padding='same', activation='selu')(level_1)
-    level_1 = layers.Dropout(dropout)(level_1)
-    level_1 = layers.Conv2D(32, kernel, padding='same', activation='selu')(level_1)
-    level_1 = layers.Dropout(dropout)(level_1)
-
-    level_0 = convup(left_in=level_0, down_in=level_1, depths=(32, 3))
-    output = layers.Activation('softmax')(level_0)
-
-    model = tf.keras.Model(inputs=inputs, outputs=output)
-
-    model.compile(optimizer=tf.keras.optimizers.Adam(),
-                  loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-
-    return model
 
 def unet_full(depth_factor=1, dropout=0, lrate=0.001):
     kernel = (3, 3)
@@ -200,6 +160,9 @@ def unet_full(depth_factor=1, dropout=0, lrate=0.001):
 
 
 if __name__ == '__main__':
+    """ Train a neural network. Allows continuing or starting a new random initialization.
+    """
+
 
     batch_size = 13
     nm_tr_images = 40
@@ -208,8 +171,8 @@ if __name__ == '__main__':
     folder = '../imageset/training/'
     valid_folder = '../imageset/validation/'
     save = True
-    load = True
-    train = False
+    load = False
+    train = True
 
 
     save_dir = '../tfmodels/'

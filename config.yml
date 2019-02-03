@@ -2,6 +2,7 @@
 lego_model_path: small_house.ldr
 
 use_neural_network: yes
+neural_network_model_path: ./tfmodels/sobel-unet-color-psize/model_val-loss-0-0677_val-acc-0-9760.h5.h5
 use_color_vision: yes
 
 environment:

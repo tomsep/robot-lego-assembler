@@ -155,9 +155,10 @@ def _mv_setup(cfg, cam_client):
             raise ValueError('Color definition file "{}" exists but is empty. '
                              'Define colors to continue.'.format(col_calib_path))
 
+    model_path = cfg['neural_network_model_path']
     cam_params = cfg['camera_parameters']
     print('Camera parameters used: {}'.format(cam_params))
-    mv = MachineVision(cam_client, color_defs, cam_params)
+    mv = MachineVision(cam_client, color_defs, cam_params, model_path)
 
     cam_calib_path = cfg['calibration_data']['camera']
     if os.path.isfile(cam_calib_path):

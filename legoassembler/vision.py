@@ -13,14 +13,12 @@ from legoassembler.utils import rectangle_angle_2d, rectangle_center_2d
 
 
 class MachineVision:
-
-    def __init__(self, client, color_defs, cam_params):
+    def __init__(self, client, color_defs, cam_params, model_path):
         self.client = client
         self.cam_params = cam_params
         self.colors = color_defs
         self._is_calibrated = False
 
-        model_path = './tfmodels/sobel-unet-color-psize/model.h5'
         self._model = tf.keras.models.load_model(model_path, compile=False)
 
     def calibrate(self, side_mm, color, draw=True):
@@ -224,6 +222,7 @@ class MachineVision:
             return dist_mm
         else:
             return tuple(dist_pix)
+
 
 
 class NoMatches(Exception):
